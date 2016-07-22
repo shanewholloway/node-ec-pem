@@ -2,19 +2,20 @@
 const crypto = require('crypto')
 const asn1 = require('asn1.js')
 
+const ec_pem_api = {
+    encodePrivateKey(enc) { return encodePrivateKey(this, enc) },
+    encodePublicKey(enc) { return encodePublicKey(this, enc) },
+}
+
 function ec_pem(ecdh, curve) {
   curve = ecdh.curve || curve
   if (!curve)
     throw new Error("EC curve must be specified for PEM encoding support")
-
-  return Object.assign(ecdh, { curve,
-      encodePrivateKey(enc) { return encodePrivateKey(this, enc) },
-      encodePublicKey(enc) { return encodePublicKey(this, enc) },
-    }) }
-
+  return Object.assign(ecdh, ec_pem_api, {curve})
+}
 
 exports = module.exports = Object.assign(ec_pem, {
-  ec_pem, generate, load, decode,
+  ec_pem, ec_pem_api, generate, load, decode,
   loadPrivateKey, decodePrivateKey, encodePrivateKey,
   loadPublicKey, decodePublicKey, encodePublicKey })
 
