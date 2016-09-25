@@ -1,11 +1,11 @@
 {
   "name": "ec-pem",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Enables `crypto.sign` and `crypto.verify` using `crypto.createECDH` generated keys",
   "keywords": [ "ECDH", "crypto", "PEM" ],
   "homepage": "https://github.com/shanewholloway/node-ec-pem",
   "bugs": "https://github.com/shanewholloway/node-ec-pem/issues",
-  "repository" : { "type" : "git", "url" : "https://github.com/shanewholloway/node-ec-pem.git"},
+  "repository": "shanewholloway/node-ec-pem",
   "author": "Shane Holloway <shane.holloway@ieee.org>",
   "license": "ISC",
   "main": "ec_pem.js",
@@ -16,6 +16,8 @@
     "mocha": "^2.5.3"
   },
   "scripts": {
-    "test": "./node_modules/.bin/mocha tests"
+    "prepublish": "npm -s run test",
+    "preversion": "npm -s run test",
+    "test": "mocha test"
   }
 }
