@@ -1,8 +1,12 @@
 {
   "name": "ec-pem",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "description": "Enables `crypto.sign` and `crypto.verify` using `crypto.createECDH` generated keys",
-  "keywords": [ "ECDH", "crypto", "PEM" ],
+  "keywords": [
+    "ECDH",
+    "crypto",
+    "PEM"
+  ],
   "homepage": "https://github.com/shanewholloway/node-ec-pem",
   "bugs": "https://github.com/shanewholloway/node-ec-pem/issues",
   "repository": "shanewholloway/node-ec-pem",
