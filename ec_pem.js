@@ -5,6 +5,8 @@ const asn1 = require('asn1.js')
 const ec_pem_api = {
     encodePrivateKey(enc) { return encodePrivateKey(this, enc) },
     encodePublicKey(enc) { return encodePublicKey(this, enc) },
+    sign(algorithm, ...optionalArgs) { return sign(this, algorithm, ...optionalArgs) },
+    verify(algorithm, ...optionalArgs) { return verify(this, algorithm, ...optionalArgs) },
 }
 
 function ec_pem(ecdh, curve) {
@@ -15,7 +17,7 @@ function ec_pem(ecdh, curve) {
 }
 
 exports = module.exports = Object.assign(ec_pem, {
-  ec_pem, ec_pem_api, generate, load, decode,
+  ec_pem, ec_pem_api, generate, load, decode, sign, verify,
   loadPrivateKey, decodePrivateKey, encodePrivateKey,
   loadPublicKey, decodePublicKey, encodePublicKey })
 
@@ -40,8 +42,6 @@ function decode(pem_key_string) {
     return decodePublicKey(pem_key_string)
   throw new Error("Not a valid PEM formatted EC key")
 }
-
-
 
 function loadPrivateKey(pem_key_string) {
   const key = decodePrivateKey(pem_key_string)
@@ -116,6 +116,21 @@ function encodePublicKey(ecdh, enc='pem') {
 
   return ASN1_ECPublicKey.encode(obj, enc, _encode_public_key_extra[enc])
 }
+
+
+function sign(ecdh, algorithm, ...args) {
+  let sign = crypto.createSign(algorithm)
+  let _do_sign = sign.sign
+  sign.sign = output_format =>
+    _do_sign.call(sign, encodePrivateKey(ecdh, 'pem'), output_format)
+  return args ? sign.update(...args) : sign }
+
+function verify(ecdh, algorithm, ...args) {
+  let verify = crypto.createVerify(algorithm)
+  let _do_verify = verify.verify
+  verify.verify = signature =>
+    _do_verify.call(verify, encodePublicKey(ecdh, 'pem'), signature)
+  return args ? verify.update(...args) : verify }
 
 
 
