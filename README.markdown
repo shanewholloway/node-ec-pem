@@ -6,7 +6,7 @@ Enables `crypto.sign` and `crypto.verify` using `crypto.createECDH` generated ke
 
 ```javascript
 const crypto = require('crypto');
-const ec_pem = require('../ec_pem');
+const ec_pem = require('ec-pem');
 
 let alice_pem_private, alice_pem_public;
 {
@@ -42,5 +42,34 @@ let signature;
   if (!matched)
     throw new Error("Verification failed");
 }
+```
+
+### Use ec_pem/cert
+
+```javascript
+const https = require('https');
+const ec_pem = require('ec-pem');
+const ec_cert = require('ec-pem/cert');
+
+let svr = ec_cert.createSelfSignedCertificate(
+    'example.com', ec_pem.generate('prime256v1'))
+  .then(options => https.createServer(options) )
+  .then(svr => {
+    svr.on('secureConnection', sock => console.log("New secure connection"));
+    svr.on('request', (req,res) => {
+      res.writeHead(200);
+      res.end('hello world\n');
+    });
+    return svr })
+  .then(svr => new Promise((resolve, reject) =>
+      svr.listen(8443, '127.0.0.1',
+        (err) => err ? reject(err) : resolve(svr))))
+
+svr.then(() =>
+  https.get(
+    {hostname: '127.0.0.1', port:8443, pathname:'/', rejectUnauthorized: false},
+    res => { console.log(res.statusCode) }))
+
+
 ```
 
