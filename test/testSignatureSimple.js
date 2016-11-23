@@ -7,18 +7,23 @@ const debug = !!process.env.debug
 
 const keys = {
   priv: ['-----BEGIN EC PRIVATE KEY-----',
-         'ME8CAQEEQYEYjwI7+EZlaLR9bVFluK0Jv57LFl+EgDdvCabqjUuW2IhxGC4ZylGd',
-         'Imp8OMoAUU1n7IGlDNmXZ5Ui0qdfvPlEoAcGBSuBBAAj',
-         '-----END EC PRIVATE KEY-----'].join('\n'),
+         'MIHbAgEBBEGBGI8CO/hGZWi0fW1RZbitCb+eyxZfhIA3bwmm6o1LltiIcRguGcpR',
+         'nSJqfDjKAFFNZ+yBpQzZl2eVItKnX7z5RKAHBgUrgQQAI6GBiQOBhgAEAZxYxkUi',
+         'Kjf2qlRl5HQKK915B5HW80OsacHj2tPvXbzS8wlFK8eva4btnj+Gpoco7IRCt1Ky',
+         'Wpo2q1Bm6AmjGLqmARyH4bubEovlHp/Er0ayQYdp8xx5RIgbEVidQv6TcaZ6UxH8',
+         'ia/teZ1hfdzgpeIS2SWflu1dp5hT8S3aOIj6+Kye',
+         '-----END EC PRIVATE KEY-----',
+         ''].join('\n'),
   pub:  ['-----BEGIN PUBLIC KEY-----',
          'MIGbMBAGByqGSM49AgEGBSuBBAAjA4GGAAQBnFjGRSIqN/aqVGXkdAor3XkHkdbz',
          'Q6xpwePa0+9dvNLzCUUrx69rhu2eP4amhyjshEK3UrJamjarUGboCaMYuqYBHIfh',
          'u5sSi+Uen8SvRrJBh2nzHHlEiBsRWJ1C/pNxpnpTEfyJr+15nWF93OCl4hLZJZ+W',
          '7V2nmFPxLdo4iPr4rJ4=',
-         '-----END PUBLIC KEY-----'].join('\n'),
+         '-----END PUBLIC KEY-----',
+         ''].join('\n'),
 }
 
-const data = Buffer('a message to sign')
+const data = Buffer.from('a message to sign')
 
 
 describe('test signature simple', () => {

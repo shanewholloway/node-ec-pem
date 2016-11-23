@@ -18,7 +18,7 @@ describe('documentation', () => {
     }
 
 
-    const data = Buffer('a message to sign');
+    const data = Buffer.from('a message to sign');
 
     let signature;
     {

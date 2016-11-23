@@ -23,7 +23,7 @@ let alice_pem_private, alice_pem_public;
 }
 
 
-const data = Buffer('a message to sign');
+const data = Buffer.from('a message to sign');
 
 let signature;
 {

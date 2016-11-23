@@ -67,13 +67,17 @@ function decodePrivateKey(pem_key_string) {
 const _encode_private_key_extra = {
   pem: {label: 'EC PRIVATE KEY'}}
 function encodePrivateKey(ecdh, enc='pem') {
+  if (!ecdh.curve)
+    throw new Error('Missing required attribute "ecdh.curve"; (e.g. ecdh.curve = \'prime256v1\')')
+
   const curve = asn1_objid_lookup_table[ecdh.curve]
 
   var obj = {version: 1,
     private_key: ecdh.getPrivateKey(),
-    ec_params: { type: 'curve', value: curve.value}}
+    ec_params: { type: 'curve', value: curve.value},
+    public_key: {unused: 0, data: ecdh.getPublicKey()}}
 
-  return ASN1_ECPrivateKey.encode(obj, enc, _encode_private_key_extra[enc])
+  return ASN1_ECPrivateKey.encode(obj, enc, _encode_private_key_extra[enc])+'\n'
 }
 
 
@@ -114,7 +118,7 @@ function encodePublicKey(ecdh, enc='pem') {
     algorithm: { algorithm: alg.value, curve: curve.value },
     public_key: {unused: 0, data: public_key}}
 
-  return ASN1_ECPublicKey.encode(obj, enc, _encode_public_key_extra[enc])
+  return ASN1_ECPublicKey.encode(obj, enc, _encode_public_key_extra[enc])+'\n'
 }
 
 
