@@ -33,8 +33,6 @@ const example_subjects = {
 function openssl_req(options, ec) {
   if ('string' === typeof options) 
     options = {self_sign: true, subjects: {CN: options}}
-  
-  let self_sign = options.self_sign
 
   let subjects = options.subjects
   if ('string' === typeof subjects) 
@@ -44,7 +42,9 @@ function openssl_req(options, ec) {
 
   const subj = Object.keys(subjects).map(k => `/${k}=${subjects[k]}`).join()
 
-  let args = ['req', '-new', '-key', '/dev/stdin', self_sign && '-x509', '-subj', subj]
+  let args = ['req', '-new', '-key', '/dev/stdin', '-subj', subj]
+  if (options.self_sign)
+    args.push('-x509', '-days', options.days || 1)
   args = args.filter(e => e)
 
   return openssl_cmd(args, {input: ec_pem.encodePrivateKey(ec)})
