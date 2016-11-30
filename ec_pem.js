@@ -9,8 +9,25 @@ const ec_pem_api = {
     verify(algorithm, ...optionalArgs) { return verify(this, algorithm, ...optionalArgs) },
 }
 
+const curveByKeySize = {
+  '49,24': [ 'prime192v1' ],
+  '65,32': [ 'prime256v1' ],
+  '43,21': [ 'sect163k1', 'sect163r2' ],
+  '43,20': [ 'sect163k1', 'sect163r2' ],
+  '57,28': [ 'secp224r1' ],
+  '61,29': [ 'sect233k1', 'sect233r1' ],
+  '61,28': [ 'sect233r1' ],
+  '73,36': [ 'sect283k1', 'sect283r1' ],
+  '73,35': [ 'sect283k1', 'sect283r1' ],
+  '97,48': [ 'secp384r1' ],
+  '105,51': [ 'sect409k1', 'sect409r1' ],
+  '133,66': [ 'secp521r1' ],
+  '133,65': [ 'secp521r1' ],
+  '145,71': [ 'sect571k1', 'sect571r1' ],
+  '145,72': [ 'sect571k1', 'sect571r1' ] }
+
 function ec_pem(ecdh, curve) {
-  curve = ecdh.curve || curve
+  curve = ecdh.curve || curve || inferCurve(ecdh, true)
   if (!curve)
     throw new Error("EC curve must be specified for PEM encoding support")
   return Object.assign(ecdh, ec_pem_api, {curve})
@@ -19,8 +36,15 @@ function ec_pem(ecdh, curve) {
 exports = module.exports = Object.assign(ec_pem, {
   ec_pem, ec_pem_api, generate, load, decode, sign, verify,
   loadPrivateKey, decodePrivateKey, encodePrivateKey,
-  loadPublicKey, decodePublicKey, encodePublicKey })
+  loadPublicKey, decodePublicKey, encodePublicKey,
+  inferCurve })
 
+
+function inferCurve(ecdh, exactlyOne) {
+  const klen = [ecdh.getPublicKey().length, ecdh.getPrivateKey().length]
+  const ans = curveByKeySize[klen]
+  if (!exactlyOne) return ans
+  return (ans.length === 1) ? ans[1] : null }
 
 
 function generate(curve) {
@@ -67,14 +91,15 @@ function decodePrivateKey(pem_key_string) {
 const _encode_private_key_extra = {
   pem: {label: 'EC PRIVATE KEY'}}
 function encodePrivateKey(ecdh, enc='pem') {
-  if (!ecdh.curve)
+  let curve = ecdh.curve || inferCurve(ecdh, true)
+  if (!curve)
     throw new Error('Missing required attribute "ecdh.curve"; (e.g. ecdh.curve = \'prime256v1\')')
 
-  const curve = asn1_objid_lookup_table[ecdh.curve]
+  const asn1_curve = asn1_objid_lookup_table[curve]
 
   var obj = {version: 1,
     private_key: ecdh.getPrivateKey(),
-    ec_params: { type: 'curve', value: curve.value},
+    ec_params: { type: 'curve', value: asn1_curve.value},
     public_key: {unused: 0, data: ecdh.getPublicKey()}}
 
   return ASN1_ECPrivateKey.encode(obj, enc, _encode_private_key_extra[enc])+'\n'
