@@ -109,35 +109,84 @@ describe('test EC generating a self-signed certificate', () => {
 
 describe('test using EC self-signed certificate', () => {
   const ec = ec_pem.generate('prime256v1')
-  const cert = ec_cert.createSelfSignedCertificate('example.com', ec)
+  const cert_options = ec_cert.createSelfSignedCertificate('example.com', ec)
 
-  it('with tls', done => {
-    cert.then(options => tls.createServer(options) )
-      .then(svr => {
-        svr.on('secureConnection', sock => done())
-        svr.on('error', err => done(err))
-        svr.listen(0, '127.0.0.1', () => {
-          tls.connect(svr.address().port,
-            {rejectUnauthorized: false},
-            ans => { })
-        }) })
-      .catch(done)
+  it('with tls', done => do_tls_server_test(cert_options, done))
+  it('with https', done => do_https_server_test(cert_options, done))
+})
+
+describe('test EC signing a CSR', () => {
+  const ec = ec_pem.generate('prime256v1')
+  const csr = ec_cert.generateCSR('example.com', ec)
+
+  it('from a new ec_pem keypair', done => {
+    const ec_ca = ec_pem.generate('prime256v1')
+    const ec_ca_cert = ec_cert.createSelfSignedCertificate('example.com', ec_ca)
+
+    ec_cert.createSignedCertificate(csr, ec_ca, ec_ca_cert)
+      .then(()=>done(), done)
   })
 
-  it('with https', done => {
-    cert.then(options => https.createServer(options) )
-      .then(svr => {
-        svr.on('request', (req,res) => {
-          res.writeHead(211)
-          res.end('hello world\n')
-        })
-        svr.on('error', err => done(err))
-        svr.listen(0, '127.0.0.1', () => {
-          https.get(
-            {hostname: '127.0.0.1', port:svr.address().port, pathname:'/', rejectUnauthorized: false},
-            res => { done(res.statusCode = 211 ? null : new Error(`Wrong status code: ${res.statusCode}`)) })
-        }) })
-      .catch(done)
+  it('from a new crypto.createECDH keypair', done => {
+    const ec_ca = crypto.createECDH('prime256v1')
+    ec_ca.curve = 'prime256v1'
+    ec_ca.generateKeys()
+    const ec_ca_cert = ec_cert.createSelfSignedCertificate('example.com', ec_ca)
+
+    ec_cert.createSignedCertificate(csr, ec_ca, ec_ca_cert)
+      .then(()=>done(), done)
+  })
+
+  it('should work from a known EC Private Key in PEM format', done => {
+    const ec_ca = ec_pem.loadPrivateKey(test_data.priv)
+    const ec_ca_cert = test_data.cert.join('\n')
+
+    ec_cert.createSignedCertificate(csr, ec_ca, ec_ca_cert)
+      .then(()=>done(), done)
   })
 })
+
+describe('test using EC actual signed certificate', () => {
+  const ec = ec_pem.generate('prime256v1')
+  const csr = ec_cert.generateCSR('example.com', ec)
+
+  const ec_ca = ec_pem.loadPrivateKey(test_data.priv)
+  const ec_ca_cert = test_data.cert.join('\n')
+  const cert = ec_cert.createSignedCertificate(csr, ec_ca, ec_ca_cert)
+
+  const cert_options = ec_cert.asTLSOptions(cert, ec)
+
+  it('with tls', done => do_tls_server_test(cert_options, done))
+  it('with https', done => do_https_server_test(cert_options, done))
+})
+
+function do_tls_server_test(cert_options, done) {
+  cert_options
+    .then(options => tls.createServer(options) )
+    .then(svr => {
+      svr.on('secureConnection', sock => done())
+      svr.on('error', err => done(err))
+      svr.listen(0, '127.0.0.1', () => {
+        tls.connect(svr.address().port,
+          {rejectUnauthorized: false},
+          ans => { })
+      }) })
+    .catch(done) }
+
+function do_https_server_test(cert_options, done) {
+  cert_options
+    .then(options => https.createServer(options) )
+    .then(svr => {
+      svr.on('request', (req,res) => {
+        res.writeHead(211)
+        res.end('hello world\n')
+      })
+      svr.on('error', err => done(err))
+      svr.listen(0, '127.0.0.1', () => {
+        https.get(
+          {hostname: '127.0.0.1', port:svr.address().port, pathname:'/', rejectUnauthorized: false},
+          res => { done(res.statusCode = 211 ? null : new Error(`Wrong status code: ${res.statusCode}`)) })
+      }) })
+    .catch(done) }
+
 
