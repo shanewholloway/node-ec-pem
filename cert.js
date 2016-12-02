@@ -14,7 +14,8 @@ function generateCertificateSigningRequest(subjects, ec) {
       Object.defineProperties({csr},
         {ec: {value: ec}}) )}
 
-function createSignedCertificate(csr, ca_key, ca_cert, options={}) {
+function createSignedCertificate(csr, ca_key, ca_cert, options) {
+  if (!options) options = {}
   if (csr == null)
     throw new Error("Parameter 'csr' is required. (e.g. csr = generateCertificateSigningRequest('example.com', ec))")
   if (ca_key == null)
@@ -80,7 +81,8 @@ function openssl_req(options, ec) {
 
 
 // openssl x509 -req -in «/tmp/.../csr.pem» -CAkey /dev/stdin < «ec private key»
-function openssl_x509(csr, ca_key, ca_cert, options={}) {
+function openssl_x509(csr, ca_key, ca_cert, options) {
+  if (!options) options = {}
   if (!ca_cert)
     throw new Error("Parameter 'ca_cert' is required")
 

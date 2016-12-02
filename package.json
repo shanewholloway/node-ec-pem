@@ -1,6 +1,6 @@
 {
   "name": "ec-pem",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "description": "Enables `crypto.sign` and `crypto.verify` using `crypto.createECDH` generated keys",
   "keywords": [
     "ECDH",
