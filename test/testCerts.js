@@ -19,31 +19,31 @@ const test_data = {
          '-----END EC PRIVATE KEY-----',
          ''].join('\n'),
   csr: [ '-----BEGIN CERTIFICATE REQUEST-----',
-         'MIIB0DCCATICAQAwFjEUMBIGA1UEAwwLZXhhbXBsZS5jb20wgZswEAYHKoZIzj0C',
+         'MIIB0zCCATUCAQAwFjEUMBIGA1UEAwwLZXhhbXBsZS5jb20wgZswEAYHKoZIzj0C',
          'AQYFK4EEACMDgYYABAGcWMZFIio39qpUZeR0CivdeQeR1vNDrGnB49rT71280vMJ',
          'RSvHr2uG7Z4/hqaHKOyEQrdSslqaNqtQZugJoxi6pgEch+G7mxKL5R6fxK9GskGH',
          'afMceUSIGxFYnUL+k3GmelMR/Imv7XmdYX3c4KXiEtkln5btXaeYU/Et2jiI+vis',
-         'nqB3MHUGCSqGSIb3DQEJDjFoMGYwCQYDVR0TBAIwADALBgNVHQ8EBAMCAf4wHQYD',
-         'VR0OBBYEFFPasyZgab6ZlbigEtvCJChVh613MC0GA1UdEQQmMCSCC2V4YW1wbGUu',
-         'Y29tgg93d3cuZXhhbXBsZS5jb22HBAHqOP8wCQYHKoZIzj0EAQOBjAAwgYgCQgF3',
-         'GsmvJCguKDh+tCPHIURmwY3oNRTHp45hQmDXLHXCoWyLLhctAFeJ1cLE67ZRgQma',
-         'XCeOsLpy26yuex5bUg5QDQJCAJSYxRxmCRSvuMdRJngUx+t7cLyxIIl/0yM0BqUF',
-         'ACBO698KqfZK+B4y6qthqfmphfL6UPTq66FpfZ6sSL37wsmb',
+         'nqB6MHgGCSqGSIb3DQEJDjFrMGkwDAYDVR0TBAUwAwEB/zALBgNVHQ8EBAMCAf4w',
+         'HQYDVR0OBBYEFFPasyZgab6ZlbigEtvCJChVh613MC0GA1UdEQQmMCSCC2V4YW1w',
+         'bGUuY29tgg93d3cuZXhhbXBsZS5jb22HBAHqOP8wCQYHKoZIzj0EAQOBjAAwgYgC',
+         'QgDh0RqLvar2NlGOfiVO4I34/T0cz/nFQc4LA2kCzHPFI4WYeUFMpmY0s1lvyJmC',
+         'UkvfSqDUvqZ+Fb8uk3jHhGsEagJCAdB6NvEW7p9PPSiB6MaxslF7NcfOPj1CgYS1',
+         '9tPX2P6wrtxFPpxExooWpuMyeHLZSO07FWrM0rBW4jO6TjEM0XkW',
          '-----END CERTIFICATE REQUEST-----',
          '' ],
   cert:[ '-----BEGIN CERTIFICATE-----',
-         'MIICETCCAXOgAwIBAgIJAMFhnjz64+y8MAkGByqGSM49BAEwFjEUMBIGA1UEAwwL',
-         'ZXhhbXBsZS5jb20wHhcNMTcwMTA2MDEyMzQ2WhcNMTcwMTA3MDEyMzQ2WjAWMRQw',
+         'MIICEzCCAXagAwIBAgIJAPJQR7jAH+udMAkGByqGSM49BAEwFjEUMBIGA1UEAwwL',
+         'ZXhhbXBsZS5jb20wHhcNMTcwMTA2MTYzMzEzWhcNMTcwMTA3MTYzMzEzWjAWMRQw',
          'EgYDVQQDDAtleGFtcGxlLmNvbTCBmzAQBgcqhkjOPQIBBgUrgQQAIwOBhgAEAZxY',
          'xkUiKjf2qlRl5HQKK915B5HW80OsacHj2tPvXbzS8wlFK8eva4btnj+Gpoco7IRC',
          't1KyWpo2q1Bm6AmjGLqmARyH4bubEovlHp/Er0ayQYdp8xx5RIgbEVidQv6TcaZ6',
-         'UxH8ia/teZ1hfdzgpeIS2SWflu1dp5hT8S3aOIj6+Kyeo2gwZjAJBgNVHRMEAjAA',
-         'MAsGA1UdDwQEAwIB/jAdBgNVHQ4EFgQUU9qzJmBpvpmVuKAS28IkKFWHrXcwLQYD',
-         'VR0RBCYwJIILZXhhbXBsZS5jb22CD3d3dy5leGFtcGxlLmNvbYcEAeo4/zAJBgcq',
-         'hkjOPQQBA4GMADCBiAJCAIu2gPBnmx9bx5J18o0UzoHWvl8HrVFpcMPDqscYx7RY',
-         'Rmjg9IMdG98g6La8LfFZsziAD1lsRLw8UmS+L70znOFQAkIAqvJYQS8OH1HabreV',
-         'G7IYuT5jNrdHiz8kTQhAwYRjMFHGiQmxN38FmFLXkOXFZv1Vqpv7dJy4IyVhHkd1',
-         'rou3bP8=',
+         'UxH8ia/teZ1hfdzgpeIS2SWflu1dp5hT8S3aOIj6+Kyeo2swaTAMBgNVHRMEBTAD',
+         'AQH/MAsGA1UdDwQEAwIB/jAdBgNVHQ4EFgQUU9qzJmBpvpmVuKAS28IkKFWHrXcw',
+         'LQYDVR0RBCYwJIILZXhhbXBsZS5jb22CD3d3dy5leGFtcGxlLmNvbYcEAeo4/zAJ',
+         'BgcqhkjOPQQBA4GLADCBhwJCAJvl3Jz/eutnbiwbisETfyLk0ZBND2k19KBFqVwB',
+         'Kcz60g9eZyMCA/bJjG7wfCIWpGgaTucSaOfepOAj2jwVofQTAkEdeG8/zsmTTkgV',
+         '5RbKfMo4J03LyR5sDvsr1B0JuFGgeA6DC7c3RbZb2RjHLjB4oQE+cCFp0WiC54Ua',
+         '6rn03T85Cg==',
          '-----END CERTIFICATE-----',
          '' ]
 }
@@ -71,11 +71,11 @@ describe('test EC generating a CSR', () => {
   it('from a known EC Private Key in PEM format', done => {
     const ec = ec_pem.loadPrivateKey(test_data.priv)
     ec_cert.generateCSR('example.com',
-        {ec, altNames: ['example.com', 'www.example.com', '1.234.56.255']})
+        {ec, CA:true, altNames: ['example.com', 'www.example.com', '1.234.56.255']})
       .then(options => {
         let csr = options.csr.split(/\r?\n/m)
         let test = csr.map((l, i) => l == test_data.csr[i] ? '1' : '0').join('')
-        assert((test == '1011111000011') || (test == '1111111000011'), test)
+        assert((test == '1011111000011') || (test == '1111111000011') || (test == '1011111100011') || (test == '1111111100011'), test)
       }).then(() => done(), done)
   })
 })
@@ -103,7 +103,7 @@ describe('test EC generating a self-signed certificate', () => {
   it('from a known EC Private Key in PEM format', done => {
     const ec = ec_pem.loadPrivateKey(test_data.priv)
     ec_cert.createSelfSignedCertificate('example.com',
-        {ec, altNames: ['example.com', 'www.example.com', '1.234.56.255']})
+        {ec, CA:true, altNames: ['example.com', 'www.example.com', '1.234.56.255']})
       .then(options => {
         let cert = options.cert.split(/\r?\n/m)
         let test = cert.map((l, i) => l == test_data.cert[i] ? '1' : '0').join('')
@@ -184,6 +184,37 @@ describe('test using EC actual signed certificate', () => {
   it('with https over 127.0.0.1', done => do_https_server_test('127.0.0.1', cert_options, [ec_ca_cert], done))
 })
 
+function signCertWithTip(tip, options={}, subjects='localhost') {
+  const ec = options.ec || ec_pem.generate('prime256v1')
+  const csr = options.csr || ec_cert.generateCSR(subjects, Object.assign({ec}, options))
+
+  return Promise.resolve(tip).then(tip =>
+    ec_cert.createSignedCertificate(csr, tip.ec, [tip.cert, tip.ca||''].join(''), options))
+}
+
+describe('test using EC chain of signed certificates', () => {
+  const altNames = ['localhost', '127.0.0.1']
+  let tip, cert_options, ec_ca_cert
+  before(() => {
+    tip = {ec: ec_pem.loadPrivateKey(test_data.priv), cert: test_data.cert.join('\n')}
+
+    tip = signCertWithTip(tip, {CA:true}, 'one.local')
+    tip = signCertWithTip(tip, {CA:true}, 'two.local')
+    tip = signCertWithTip(tip, {CA:true}, 'three.local')
+
+    ec_ca_cert = tip.then(tip => tip.cert + tip.ca)
+
+    tip = signCertWithTip(tip, {altNames}, 'last.local')
+
+    cert_options = tip.then(tip => ec_cert.asTLSOptions(tip.cert, tip.ec))
+  })
+
+  it('with tls over localhost', done => do_tls_server_test('localhost', cert_options, [ec_ca_cert], done))
+  it('with tls over 127.0.0.1', done => do_tls_server_test('127.0.0.1', cert_options, [ec_ca_cert], done))
+  it('with https over localhost', done => do_https_server_test('localhost', cert_options, [ec_ca_cert], done))
+  it('with https over 127.0.0.1', done => do_https_server_test('127.0.0.1', cert_options, [ec_ca_cert], done))
+})
+
 function do_tls_server_test(resolveName, cert_options, ca_list, done) {
   assert(ca_list.length > 0)
   cert_options
@@ -218,5 +249,4 @@ function do_https_server_test(resolveName, cert_options, ca_list, done) {
             res => { done(res.statusCode = 211 ? null : new Error(`Wrong status code: ${res.statusCode}`)) }))
       }) })
     .catch(done) }
-
 

@@ -98,8 +98,12 @@ function createSignedCertificate(csr, ca_key, ca_cert, options) {
     throw new Error("Parameter 'ca_cert' is required. (e.g. ca_cert = createSelfSignedCertificate('example.com', ca_key))")
 
   return Promise.all([csr, ca_key, ca_cert, options])
-    .then(args => openssl_x509(...args))
-    .then(cert => ({cert, ca: ca_cert})) }
+    .then(([csr, ca_key, ca_cert, options]) =>
+      openssl_x509(csr, ca_key, ca_cert, options)
+        .then(cert => 
+          Object.defineProperties(
+            {cert, ca: ca_cert, csr: csr.csr || csr},
+            {ec: {value: csr.ec}}) ))}
 
 function createSelfSignedCertificate(subjects, options, ec) {
   [options, ec] = asCertRequestArgs(subjects, options, ec)
@@ -108,6 +112,8 @@ function createSelfSignedCertificate(subjects, options, ec) {
     .then(cert => asTLSOptions(cert, ec)) }
 
 function asTLSOptions(cert, ec) {
+  if (ec == null)
+    ec = cert.ec
   if (ec == null)
     throw new Error("Parameter 'ec' is required and should be used to create cert")
 
@@ -176,6 +182,20 @@ function openssl_x509(csr, ca_key, ca_cert, options) {
           return resp.stdout }) })}
 
 
+openssl_inspect.presets = {
+  req: ['req', '-noout', '-text'],
+  x509: ['x509', '-noout', '-text'],
+  verify: ['verify', '-verbose'], }
+
+function openssl_inspect(args, input) {
+  if ('string' === typeof args)
+    args = openssl_inspect.presets[args] || [args]
+
+  return Promise.all([Promise.all(args), Promise.resolve(input)])
+    .then(([args, input]) => openssl_cmd(args, {input}))
+    .then(resp => { return resp.stdout }) }
+
+
 function openssl_cmd(args, options) {
   return spawn_cmd('openssl', args, options) }
 
@@ -218,15 +238,21 @@ const _fs_close = (...args) =>
       (err, ans) => err ? reject(err) : resolve(ans)) )
 
 const tmpfile = (content) =>
-  content
-    ? new Promise((resolve, reject) =>
-      tmp.file((err, path, fd, cleanup) => {
-        if (err) return reject(err)
-        _fs_write(fd, content)
-          .catch(err => (_fs_close(fd), reject(err)))
-          .then(() => _fs_close(fd))
-          .then(() => resolve({path, cleanup}), reject) }))
-    : Promise.resolve()
+  Promise.resolve(content).then(content => {
+    if (!content) return;
+    return _tmpfile(content)
+      .catch(() => _tmpfile(content))
+      .catch(() => _tmpfile(content))
+  })
+
+const _tmpfile = (content) =>
+  new Promise((resolve, reject) =>
+    tmp.file((err, path, fd, cleanup) => {
+      if (err) return reject(err)
+      _fs_write(fd, content)
+        .catch(err => (_fs_close(fd), reject(err)))
+        .then(() => _fs_close(fd))
+        .then(() => resolve({path, cleanup}), reject) }))
 
 
 
@@ -236,7 +262,7 @@ Object.assign(exports, {
   asTLSOptions,
   asCertRequestArgs, configForOpenSSLRequest,
 
-  openssl_req, openssl_x509, openssl_cmd,
+  openssl_req, openssl_x509, openssl_cmd, openssl_inspect,
   spawn_cmd, 
 })
 
