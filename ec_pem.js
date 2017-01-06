@@ -37,7 +37,7 @@ exports = module.exports = Object.assign(ec_pem, {
   ec_pem, ec_pem_api, generate, load, decode, sign, verify,
   loadPrivateKey, decodePrivateKey, encodePrivateKey,
   loadPublicKey, decodePublicKey, encodePublicKey,
-  inferCurve })
+  inferCurve, pemDecodeRaw, pemEncodeRaw })
 
 
 function inferCurve(ecdh, exactlyOne) {
@@ -72,6 +72,20 @@ function loadPrivateKey(pem_key_string) {
   const ecdh = crypto.createECDH(key.curve)
   ecdh.setPrivateKey(key.private_key)
   return ec_pem(ecdh, key.curve)
+}
+
+const rx_pem_generic = /-----BEGIN ([^-\r\n]+)-----\n([^-]*)-----END \1-----/
+function pemDecodeRaw(pem_key_string) {
+  const pem_match = rx_pem_generic.exec(pem_key_string)
+  if (!pem_match) throw new Error("Invalid PEM text embedding")
+
+  return {heading: pem_match[1], content: Buffer.from(pem_match[2], 'base64')}
+}
+
+function pemEncodeRaw(heading, content) {
+  content = content.toString('ascii')
+  let out = Buffer.from(content).toString('base64').split(/.{64}/)
+  console.log({heading, content, out})
 }
 
 const rx_pem_ec_private_key = /-----BEGIN EC PRIVATE KEY-----\n([^-]*)-----END EC PRIVATE KEY-----/

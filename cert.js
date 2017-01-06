@@ -1,18 +1,92 @@
 'use strict'
 const fs = require('fs')
+const {isIP} = require('net')
 const tmp = require('tmp')
 const child_process = require('child_process')
 
 const ec_pem = require('./ec_pem')
 
-
-function generateCertificateSigningRequest(subjects, ec) {
+function _unpackSigningArgs(options, ec) {
+  if (ec !== undefined)
+    return [options || {}, ec]
+  if (options.generateKeys)
+    return [{}, ec=options]
   if (ec == null)
-    ec = ec_pem.generate('prime256v1')
-  return openssl_req({subjects}, ec)
-    .then(csr => 
-      Object.defineProperties({csr},
-        {ec: {value: ec}}) )}
+    ec = options.ec || ec_pem.generate('prime256v1')
+
+  return [options || {}, ec] }
+
+function asCertRequestArgs(subjects, options, ec) {
+  [options, ec] = _unpackSigningArgs(options, ec)
+  if (subjects)
+    options.subjects = subjects
+
+  if (!options.altNames)
+    options.altNames = [subjects]
+  if (!options.config)
+    options.config = configForOpenSSLRequest(options)
+  return [options, ec] }
+
+
+function configForOpenSSLRequest(opt) {
+  let subjects = opt.subjects
+  if ('string' === typeof subjects)
+    subjects = [`CN = ${subjects}`]
+
+  else if (!subjects.forEach)
+    subjects = Object.keys(subjects)
+      .map(k => `${k} = ${subjects[k]}`)
+
+  return `\
+[req]
+req_extensions = v3_req
+distinguished_name = req_subjects
+prompt = no
+
+[ req_subjects ]
+${subjects.join('\n')}
+
+${extensionConfigForOpenSSL(opt, 'v3_req')} `}
+
+
+function extensionConfigForOpenSSL(opt, req_extensions='v3_req') {
+  // c.f. https://www.openssl.org/docs/man1.0.1/apps/x509v3_config.html
+  // c.f. http://wiki.cacert.org/FAQ/subjectAltName
+  // c.f. http://apetec.com/support/generatesan-csr.htm
+
+  if (!opt.keyUsage)
+    opt.keyUsage = 'digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment, keyAgreement, keyCertSign, cRLSign'
+
+  let extendedKeyUsage = opt.extendedKeyUsage
+    && opt.extendedKeyUsage.join ? opt.extendedKeyUsage.join(', ') : opt.extendedKeyUsage
+  extendedKeyUsage = !extendedKeyUsage ? ''
+    : `extendedKeyUsage = ${extendedKeyUsage.join ? extendedKeyUsage.join(', ') : extendedKeyUsage}`
+
+  let altNames=[], idx_ip=0, idx_dns=0
+  for (let n of opt.altNames || [])
+    if (isIP(n))
+      altNames.push(`IP.${++idx_ip} = ${n}`)
+    else
+      altNames.push(`DNS.${++idx_dns} = ${n}`)
+
+  if (altNames.length)
+    altNames = ['subjectAltName = @san_list', '', '[san_list]'].concat(altNames)
+
+  return `\
+[ ${req_extensions} ]
+basicConstraints = CA:${opt.CA ? 'TRUE' : 'FALSE'}
+keyUsage = ${opt.keyUsage.join ? opt.keyUsage.join(', ') : opt.keyUsage}
+subjectKeyIdentifier = hash
+${extendedKeyUsage}
+
+${altNames.join('\n')}` }
+
+
+
+function generateCertificateSigningRequest(subjects, options, ec) {
+  [options, ec] = asCertRequestArgs(subjects, options, ec)
+  return openssl_req(options, ec)
+    .then(csr => Object.defineProperties({csr}, {ec: {value: ec}}) )}
 
 function createSignedCertificate(csr, ca_key, ca_cert, options) {
   if (!options) options = {}
@@ -27,10 +101,10 @@ function createSignedCertificate(csr, ca_key, ca_cert, options) {
     .then(args => openssl_x509(...args))
     .then(cert => ({cert, ca: ca_cert})) }
 
-function createSelfSignedCertificate(subjects, ec) {
-  if (ec == null)
-    ec = ec_pem.generate('prime256v1')
-  return openssl_req({subjects, self_sign: true}, ec)
+function createSelfSignedCertificate(subjects, options, ec) {
+  [options, ec] = asCertRequestArgs(subjects, options, ec)
+  options.self_sign = true
+  return openssl_req(options, ec)
     .then(cert => asTLSOptions(cert, ec)) }
 
 function asTLSOptions(cert, ec) {
@@ -52,32 +126,27 @@ const example_subjects = {
   OU: 'example org unit', // organizational unit
 }
 
-function openssl_subj_arg(subjects) {
-  if (!subjects) return []
-  if ('string' === typeof subjects)
-    return ['-subj', `/CN=${subjects}`]
-
-  subjects = Object.keys(subjects)
-    .map(k => `/${k}=${subjects[k]}`)
-
-  return ['-subj', subjects.join()] }
-
-
 // openssl req -new -key /dev/stdin [-x509] -subj "/CN=example.com" < «ec private key»
 function openssl_req(options, ec) {
   if ('string' === typeof options) 
     options = {self_sign: true, subjects: {CN: options}}
 
-  let args = ['req', '-new', '-key', '/dev/stdin']
+  return tmpfile(options.config).then(tmp_config => {
+    let args = ['req', '-new', '-key', '/dev/stdin']
 
-  if (options.self_sign)
-    args.push('-x509', '-days', options.days || 1)
 
-  args = args.concat(openssl_subj_arg(options.subjects))
+    if (tmp_config)
+      args.push('-config', tmp_config.path)
 
-  args = args.filter(e => e)
-  return openssl_cmd(args, {input: ec_pem.encodePrivateKey(ec)})
-    .then(resp => resp.stdout) }
+    if (options.self_sign) {
+      args.push('-x509', '-extensions', 'v3_req', '-days', options.days || 1)
+    }
+
+    args = args.filter(e => e)
+    return openssl_cmd(args, {input: ec_pem.encodePrivateKey(ec)})
+      .then(resp => {
+        if (tmp_config) tmp_config.cleanup()
+        return resp.stdout }) })}
 
 
 // openssl x509 -req -in «/tmp/.../csr.pem» -CAkey /dev/stdin < «ec private key»
@@ -86,15 +155,25 @@ function openssl_x509(csr, ca_key, ca_cert, options) {
   if (!ca_cert)
     throw new Error("Parameter 'ca_cert' is required")
 
-  return tmpfile(csr.csr || csr).then(tmp_csr =>
-    tmpfile(ca_cert.cert || ca_cert).then(tmp_ca_cert => {
-      let args = ['x509', '-req', '-days', options.days || 1, '-set_serial', options.serial || '00']
+  if (!options.extensions)
+    options.extensions = extensionConfigForOpenSSL(options, 'v3_req')
+
+  return Promise.all([
+      tmpfile(csr.csr || csr),
+      tmpfile(ca_cert.cert || ca_cert),
+      tmpfile(options.extensions) ])
+    .then(tmpList => {
+      const [tmp_csr, tmp_ca_cert, tmp_ext] = tmpList
+
+      let args = ['x509', '-req']
+      args.push('-days', options.days || 1, '-set_serial', options.serial || '00')
+      args.push('-extensions', 'v3_req', '-extfile', tmp_ext.path)
       args.push('-in', tmp_csr.path, '-CA', tmp_ca_cert.path, '-CAkey', '/dev/stdin')
+
       return openssl_cmd(args, {input: ec_pem.encodePrivateKey(ca_key)})
         .then(resp => {
-          tmp_csr.cleanup()
-          tmp_ca_cert.cleanup()
-          return resp.stdout }) }))}
+          tmpList.forEach(e => e && e.cleanup())
+          return resp.stdout }) })}
 
 
 function openssl_cmd(args, options) {
@@ -139,21 +218,25 @@ const _fs_close = (...args) =>
       (err, ans) => err ? reject(err) : resolve(ans)) )
 
 const tmpfile = (content) =>
-  new Promise((resolve, reject) =>
-    tmp.file((err, path, fd, cleanup) => {
-      if (err) return reject(err)
-      _fs_write(fd, content)
-        .catch(err => (_fs_close(fd), reject(err)))
-        .then(() => _fs_close(fd))
-        .then(() => resolve({path, cleanup}), reject) }))
+  content
+    ? new Promise((resolve, reject) =>
+      tmp.file((err, path, fd, cleanup) => {
+        if (err) return reject(err)
+        _fs_write(fd, content)
+          .catch(err => (_fs_close(fd), reject(err)))
+          .then(() => _fs_close(fd))
+          .then(() => resolve({path, cleanup}), reject) }))
+    : Promise.resolve()
 
 
 
 Object.assign(exports, {
   generateCertificateSigningRequest, generateCSR: generateCertificateSigningRequest,
-  createSignedCertificate, createSelfSignedCertificate, asTLSOptions,
+  createSignedCertificate, createSelfSignedCertificate, selfCert: createSelfSignedCertificate,
+  asTLSOptions,
+  asCertRequestArgs, configForOpenSSLRequest,
+
   openssl_req, openssl_x509, openssl_cmd,
-  openssl_subj_arg,
   spawn_cmd, 
 })
 
