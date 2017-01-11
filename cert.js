@@ -112,15 +112,15 @@ function createSelfSignedCertificate(subjects, options, ec) {
     .then(cert => asTLSOptions(cert, ec)) }
 
 function asTLSOptions(cert, ec) {
-  if (ec == null)
-    ec = cert.ec
-  if (ec == null)
-    throw new Error("Parameter 'ec' is required and should be used to create cert")
+  return Promise.resolve(cert).then(cert => {
+    if (ec == null)
+      ec = cert.ec
+    if (ec == null)
+      throw new Error("Parameter 'ec' is required and should be used to create cert")
 
-  return Promise.resolve(cert).then(cert => 
-    Object.defineProperties(
+    return Object.defineProperties(
       {cert: cert.cert || cert, key: ec_pem.encodePrivateKey(ec)},
-      {ec: {value: ec}}) )}
+      {ec: {value: ec}}) })}
 
 
 const example_subjects = {
