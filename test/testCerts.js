@@ -26,26 +26,26 @@ const test_data = {
          'nqB6MHgGCSqGSIb3DQEJDjFrMGkwDAYDVR0TBAUwAwEB/zALBgNVHQ8EBAMCAf4w',
          'HQYDVR0OBBYEFFPasyZgab6ZlbigEtvCJChVh613MC0GA1UdEQQmMCSCC2V4YW1w',
          'bGUuY29tgg93d3cuZXhhbXBsZS5jb22HBAHqOP8wCQYHKoZIzj0EAQOBjAAwgYgC',
-         'QgDh0RqLvar2NlGOfiVO4I34/T0cz/nFQc4LA2kCzHPFI4WYeUFMpmY0s1lvyJmC',
-         'UkvfSqDUvqZ+Fb8uk3jHhGsEagJCAdB6NvEW7p9PPSiB6MaxslF7NcfOPj1CgYS1',
-         '9tPX2P6wrtxFPpxExooWpuMyeHLZSO07FWrM0rBW4jO6TjEM0XkW',
+         'QgCdvD6w9R+KkBV5oa3QQlZBZasdhLnB/HG+k/i7cNV3EJ3mVNouZ6byFjWtBmj9',
+         'BiXx6j4/XXE3XaO4ia/MotkVbAJCAQa56cKrSVEpVuSO5QioC1Qn++TZFo+E/pU2',
+         'XeC1p1AT17avBkqT0H3p5y2MkLwmnOwHc+Lz/X5DMj5uKKbPHRsd',
          '-----END CERTIFICATE REQUEST-----',
-         '' ],
+         ''],
   cert:[ '-----BEGIN CERTIFICATE-----',
-         'MIICEzCCAXagAwIBAgIJAPJQR7jAH+udMAkGByqGSM49BAEwFjEUMBIGA1UEAwwL',
-         'ZXhhbXBsZS5jb20wHhcNMTcwMTA2MTYzMzEzWhcNMTcwMTA3MTYzMzEzWjAWMRQw',
+         'MIICEjCCAXagAwIBAgIJAKnCMfUE4LwWMAkGByqGSM49BAEwFjEUMBIGA1UEAwwL',
+         'ZXhhbXBsZS5jb20wHhcNMTcwMTExMjA1OTE5WhcNMjcwMTE5MjA1OTE5WjAWMRQw',
          'EgYDVQQDDAtleGFtcGxlLmNvbTCBmzAQBgcqhkjOPQIBBgUrgQQAIwOBhgAEAZxY',
          'xkUiKjf2qlRl5HQKK915B5HW80OsacHj2tPvXbzS8wlFK8eva4btnj+Gpoco7IRC',
          't1KyWpo2q1Bm6AmjGLqmARyH4bubEovlHp/Er0ayQYdp8xx5RIgbEVidQv6TcaZ6',
          'UxH8ia/teZ1hfdzgpeIS2SWflu1dp5hT8S3aOIj6+Kyeo2swaTAMBgNVHRMEBTAD',
          'AQH/MAsGA1UdDwQEAwIB/jAdBgNVHQ4EFgQUU9qzJmBpvpmVuKAS28IkKFWHrXcw',
          'LQYDVR0RBCYwJIILZXhhbXBsZS5jb22CD3d3dy5leGFtcGxlLmNvbYcEAeo4/zAJ',
-         'BgcqhkjOPQQBA4GLADCBhwJCAJvl3Jz/eutnbiwbisETfyLk0ZBND2k19KBFqVwB',
-         'Kcz60g9eZyMCA/bJjG7wfCIWpGgaTucSaOfepOAj2jwVofQTAkEdeG8/zsmTTkgV',
-         '5RbKfMo4J03LyR5sDvsr1B0JuFGgeA6DC7c3RbZb2RjHLjB4oQE+cCFp0WiC54Ua',
-         '6rn03T85Cg==',
+         'BgcqhkjOPQQBA4GKADCBhgJBT7TEKSrMiAXQqFP+GTrbwsrycrS+iwfQZgygASnP',
+         '5kinIr7V/PmRuc7Oi/cZLAjTpGGNzR3TP8D5LRYj9uPqxnkCQWTSyfWrrkTBx867',
+         'pg3Wrfvx8ClqbekWi4uuMbOtWU9spVPlczkVhwtRHMdNK+D0RdYlrX6IQrap0Ag6',
+         'Mxeho9Xa',
          '-----END CERTIFICATE-----',
-         '' ]
+         '']
 }
 
 
@@ -71,7 +71,7 @@ describe('test EC generating a CSR', () => {
   it('from a known EC Private Key in PEM format', done => {
     const ec = ec_pem.loadPrivateKey(test_data.priv)
     ec_cert.generateCSR('example.com',
-        {ec, CA:true, altNames: ['example.com', 'www.example.com', '1.234.56.255']})
+        {ec, CA:true, days: 3660, altNames: ['example.com', 'www.example.com', '1.234.56.255']})
       .then(options => {
         let csr = options.csr.split(/\r?\n/m)
         let test = csr.map((l, i) => l == test_data.csr[i] ? '1' : '0').join('')
@@ -103,7 +103,7 @@ describe('test EC generating a self-signed certificate', () => {
   it('from a known EC Private Key in PEM format', done => {
     const ec = ec_pem.loadPrivateKey(test_data.priv)
     ec_cert.createSelfSignedCertificate('example.com',
-        {ec, CA:true, altNames: ['example.com', 'www.example.com', '1.234.56.255']})
+        {ec, CA:true, days: 3660, altNames: ['example.com', 'www.example.com', '1.234.56.255']})
       .then(options => {
         let cert = options.cert.split(/\r?\n/m)
         let test = cert.map((l, i) => l == test_data.cert[i] ? '1' : '0').join('')
