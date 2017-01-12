@@ -100,10 +100,15 @@ function createSignedCertificate(csr, ca_key, ca_cert, options) {
   return Promise.all([csr, ca_key, ca_cert, options])
     .then(([csr, ca_key, ca_cert, options]) =>
       openssl_x509(csr, ca_key, ca_cert, options)
-        .then(cert => 
-          Object.defineProperties(
-            {cert, ca: ca_cert, csr: csr.csr || csr},
-            {ec: {value: csr.ec}}) ))}
+        .then(cert => {
+          const ec = csr.ec
+          const cert_chain = [cert].concat(ca_cert.cert_chain || ca_cert.cert || ca_cert)
+          cert = cert_chain.join('')
+          csr = csr.csr || csr
+
+          let ans = {cert, cert_chain, ca: ca_cert, csr: csr}
+          if (ec) Object.defineProperties(ans, {ec: {value: ec}})
+          return ans }))}
 
 function createSelfSignedCertificate(subjects, options, ec) {
   [options, ec] = asCertRequestArgs(subjects, options, ec)
@@ -196,8 +201,12 @@ function openssl_inspect(args, input) {
     .then(resp => { return resp.stdout }) }
 
 
+let _openssl_queue = Promise.resolve()
 function openssl_cmd(args, options) {
-  return spawn_cmd('openssl', args, options) }
+  const tip = _openssl_queue.then(() =>
+    spawn_cmd('openssl', args, options))
+  _openssl_queue = tip
+  return tip }
 
 
 // child_process.spawn with {stdout, stderr}, Promises
