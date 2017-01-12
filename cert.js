@@ -130,7 +130,7 @@ function asTLSOptions(cert, ec) {
 
 const example_subjects = {
   CN: 'example.com', // common name (required)
-  C: 'us', // country	
+  C: 'us', // country
   ST: 'colorado', // state
   L: 'colorado', // location
   O: 'example org', // organization
@@ -139,7 +139,7 @@ const example_subjects = {
 
 // openssl req -new -key /dev/stdin [-x509] -subj "/CN=example.com" < «ec private key»
 function openssl_req(options, ec) {
-  if ('string' === typeof options) 
+  if ('string' === typeof options)
     options = {self_sign: true, subjects: {CN: options}}
 
   return tmpfile(options.config).then(tmp_config => {
@@ -215,7 +215,7 @@ function spawn_cmd(comand, args, options) {
 
   return new Promise((resolve, reject) => {
     let io = {stdout: [], stderr: []}
-    let finish = () => 
+    let finish = () =>
       ({stdout: io.stdout.join(''), stderr: io.stderr.join('')})
 
     let child = child_process.spawn(comand, args,
@@ -272,6 +272,6 @@ Object.assign(exports, {
   asCertRequestArgs, configForOpenSSLRequest,
 
   openssl_req, openssl_x509, openssl_cmd, openssl_inspect,
-  spawn_cmd, 
+  spawn_cmd,
 })
 

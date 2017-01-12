@@ -177,7 +177,7 @@ function verify(ecdh, algorithm, ...args) {
 
 
 
-// ASN1 definitions for Elliptic Curve PKI structures. 
+// ASN1 definitions for Elliptic Curve PKI structures.
 //
 // References:
 //
