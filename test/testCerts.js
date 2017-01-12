@@ -199,12 +199,11 @@ describe('test using EC chain of signed certificates', () => {
   let tip, cert_options, ec_ca_cert
   before(() => {
     tip = {ec: ec_pem.loadPrivateKey(test_data.priv), cert: test_data.cert.join('\n')}
+    ec_ca_cert = tip.cert
 
     tip = signCertWithTip(tip, {CA:true}, 'one.local')
     tip = signCertWithTip(tip, {CA:true}, 'two.local')
     tip = signCertWithTip(tip, {CA:true}, 'three.local')
-
-    ec_ca_cert = tip.then(tip => tip.cert + tip.ca)
 
     tip = signCertWithTip(tip, {altNames}, 'last.local')
 
