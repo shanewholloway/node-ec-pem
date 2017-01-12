@@ -62,8 +62,12 @@ function extensionConfigForOpenSSL(opt, req_extensions='v3_req') {
   extendedKeyUsage = !extendedKeyUsage ? ''
     : `extendedKeyUsage = ${extendedKeyUsage.join ? extendedKeyUsage.join(', ') : extendedKeyUsage}`
 
+  let altNameSource = opt.altNames || []
+  if ('string' === typeof altNameSource)
+    altNameSource = altNameSource.split(/\s+/)
+
   let altNames=[], idx_ip=0, idx_dns=0
-  for (let n of opt.altNames || [])
+  for (let n of altNameSource)
     if (isIP(n))
       altNames.push(`IP.${++idx_ip} = ${n}`)
     else
