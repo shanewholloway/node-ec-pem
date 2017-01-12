@@ -147,7 +147,7 @@ function openssl_req(options, ec) {
     options = {self_sign: true, subjects: {CN: options}}
 
   return tmpfile(options.config).then(tmp_config => {
-    let args = ['req', '-new', '-key', '/dev/stdin']
+    let args = ['req', '-new', '-sha256', '-key', '/dev/stdin']
 
 
     if (tmp_config)
@@ -180,7 +180,7 @@ function openssl_x509(csr, ca_key, ca_cert, options) {
     .then(tmpList => {
       const [tmp_csr, tmp_ca_cert, tmp_ext] = tmpList
 
-      let args = ['x509', '-req']
+      let args = ['x509', '-req', '-sha256']
       args.push('-days', options.days || 1, '-set_serial', options.serial || '00')
       args.push('-extensions', 'v3_req', '-extfile', tmp_ext.path)
       args.push('-in', tmp_csr.path, '-CA', tmp_ca_cert.path, '-CAkey', '/dev/stdin')
