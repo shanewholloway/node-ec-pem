@@ -51,6 +51,9 @@ describe('test signature matrix api', () => {
     const key = ec_pem.generate(curve)
     const signature = key.sign(alg, data).sign()
     const valid = key.verify(alg, data).verify(signature)
-    return valid
+
+    const signature_b64 = key.sign(alg, data).sign('base64')
+    const valid_b64 = key.verify(alg, data).verify(signature_b64, 'base64')
+    return valid && valid_b64
   }
 })

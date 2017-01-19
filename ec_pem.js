@@ -245,15 +245,15 @@ function encodePublicKey(ecdh, enc='pem') {
 function sign(ecdh, algorithm, ...args) {
   let sign = crypto.createSign(algorithm)
   let _do_sign = sign.sign
-  sign.sign = output_format =>
-    _do_sign.call(sign, encodePrivateKey(ecdh, 'pem'), output_format)
+  sign.sign = signature_format =>
+    _do_sign.call(sign, encodePrivateKey(ecdh, 'pem'), signature_format)
   return args ? sign.update(...args) : sign }
 
 function verify(ecdh, algorithm, ...args) {
   let verify = crypto.createVerify(algorithm)
   let _do_verify = verify.verify
-  verify.verify = signature =>
-    _do_verify.call(verify, encodePublicKey(ecdh, 'pem'), signature)
+  verify.verify = (signature, signature_format) =>
+    _do_verify.call(verify, encodePublicKey(ecdh, 'pem'), signature, signature_format)
   return args ? verify.update(...args) : verify }
 
 
