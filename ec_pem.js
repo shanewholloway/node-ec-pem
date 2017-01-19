@@ -7,29 +7,48 @@ const ec_pem_api = {
     encodePublicKey(enc) { return encodePublicKey(this, enc) },
     sign(algorithm, ...optionalArgs) { return sign(this, algorithm, ...optionalArgs) },
     verify(algorithm, ...optionalArgs) { return verify(this, algorithm, ...optionalArgs) },
+    clone(kind) { return clone(this, kind) },
+    toJSON() { return toJSON(this) },
 }
 
 const curveByKeySize = {
+  '49': [ 'prime192v1' ],
   '49,24': [ 'prime192v1' ],
+  '65': [ 'prime256v1' ],
   '65,32': [ 'prime256v1' ],
+  '43': [ 'sect163k1', 'sect163r2' ],
   '43,21': [ 'sect163k1', 'sect163r2' ],
   '43,20': [ 'sect163k1', 'sect163r2' ],
+  '57': [ 'secp224r1' ],
   '57,28': [ 'secp224r1' ],
+  '61': [ 'sect233k1', 'sect233r1' ],
   '61,29': [ 'sect233k1', 'sect233r1' ],
   '61,28': [ 'sect233r1' ],
+  '73': [ 'sect283k1', 'sect283r1' ],
   '73,36': [ 'sect283k1', 'sect283r1' ],
   '73,35': [ 'sect283k1', 'sect283r1' ],
+  '97': [ 'secp384r1' ],
   '97,48': [ 'secp384r1' ],
+  '105': [ 'sect409k1', 'sect409r1' ],
   '105,51': [ 'sect409k1', 'sect409r1' ],
+  '133': [ 'secp521r1' ],
   '133,66': [ 'secp521r1' ],
   '133,65': [ 'secp521r1' ],
+  '145': [ 'sect571k1', 'sect571r1' ],
   '145,71': [ 'sect571k1', 'sect571r1' ],
   '145,72': [ 'sect571k1', 'sect571r1' ] }
 
 function ec_pem(ecdh, curve) {
-  curve = ecdh.curve || curve || inferCurve(ecdh, true)
+  if ('string' === typeof ecdh && undefined === curve)
+    curve = ecdh, ecdh = null;
+  else if (!curve && ecdh)
+    curve = ecdh.curve || inferCurve(ecdh, true)
+
   if (!curve)
     throw new Error("EC curve must be specified for PEM encoding support")
+
+  if (null == ecdh)
+    ecdh = crypto.createECDH(curve)
   return Object.assign(ecdh, ec_pem_api, {curve})
 }
 
@@ -37,12 +56,18 @@ exports = module.exports = Object.assign(ec_pem, {
   ec_pem, ec_pem_api, generate, load, decode, sign, verify,
   loadPrivateKey, decodePrivateKey, encodePrivateKey,
   loadPublicKey, decodePublicKey, encodePublicKey,
-  inferCurve, pemDecodeRaw, pemEncodeRaw })
+  clone, toJSON, fromJSON,
+  inferCurve, inferCurveByLengths,
+  pemDecodeRaw, pemEncodeRaw })
 
 
 function inferCurve(ecdh, exactlyOne) {
-  const klen = [ecdh.getPublicKey().length, ecdh.getPrivateKey().length]
-  const ans = curveByKeySize[klen]
+  const keyLengths = [ecdh.getPublicKey().length, ecdh.getPrivateKey().length]
+  return inferCurveByLengths(keyLengths, exactlyOne) }
+function inferCurveByLengths(keyLengths, exactlyOne) {
+  if (Number.isInteger(keyLengths))
+    keyLengths = [keyLengths,]
+  const ans = curveByKeySize[keyLengths]
   if (!exactlyOne) return ans
   return (ans.length === 1) ? ans[1] : null }
 
@@ -52,11 +77,47 @@ function generate(curve) {
   ecdh.generateKeys()
   return ec_pem(ecdh, curve)
 }
-function load(pem_key_string) {
-  if (rx_pem_ec_private_key.test(pem_key_string))
-    return loadPrivateKey(pem_key_string)
-  if (rx_pem_public_key.test(pem_key_string))
-    return loadPublicKey(pem_key_string)
+
+function clone(ecdh, kind) {
+  let copy = ec_pem(null, ecdh.curve)
+  switch (kind) {
+  case 'private':
+    copy.setPrivateKey(ecdh.getPrivateKey())
+    return copy
+
+  case false: case 'public':
+    copy.setPublicKey(ecdh.getPublicKey())
+    return copy
+
+  case true: case null: case undefined:
+    try { copy.setPrivateKey(ecdh.getPrivateKey()) }
+    catch (err) { copy.setPublicKey(ecdh.getPublicKey()) }
+    return copy
+  }
+}
+
+function toJSON(ecdh) {
+  let obj = {curve: ecdh.curve}
+  try { obj.private_key = ecdh.getPrivateKey('base64') }
+  catch (err) { obj.public_key = ecdh.getPublicKey('base64') }
+  return obj
+}
+function fromJSON(obj) {
+  let ecdh = ec_pem(null, obj.curve)
+  if (obj.private_key)
+    ecdh.setPrivateKey(obj.private_key, 'base64')
+  else if (obj.public_key)
+    ecdh.setPublicKey(obj.public_key, 'base64')
+  return ecdh
+}
+
+function load(content) {
+  if (content.curve)
+    return fromJSON(content)
+  if (rx_pem_ec_private_key.test(content))
+    return loadPrivateKey(content)
+  if (rx_pem_public_key.test(content))
+    return loadPublicKey(content)
   throw new Error("Not a valid PEM formatted EC key")
 }
 function decode(pem_key_string) {
@@ -67,11 +128,18 @@ function decode(pem_key_string) {
   throw new Error("Not a valid PEM formatted EC key")
 }
 
-function loadPrivateKey(pem_key_string) {
-  const key = decodePrivateKey(pem_key_string)
-  const ecdh = crypto.createECDH(key.curve)
+function loadPrivateKey(content) {
+  if (content.curve) {
+    let ecdh = ec_pem(null, content.curve)
+    ecdh.setPrivateKey(content.private_key)
+    return ecdh
+  } else if (!rx_pem_ec_private_key.test(content))
+    throw new Error("Not a valid PEM formatted EC private key")
+
+  const key = decodePrivateKey(content)
+  const ecdh = ec_pem(null, key.curve)
   ecdh.setPrivateKey(key.private_key)
-  return ec_pem(ecdh, key.curve)
+  return ecdh
 }
 
 const rx_pem_generic = /-----BEGIN ([^-\r\n]+)-----\n([^-]*)-----END \1-----/
@@ -83,9 +151,10 @@ function pemDecodeRaw(pem_key_string) {
 }
 
 function pemEncodeRaw(heading, content) {
-  content = content.toString('ascii')
-  let out = Buffer.from(content).toString('base64').split(/.{64}/)
-  console.log({heading, content, out})
+  let lines = Buffer.from(content).toString('base64').split(/.{64}/)
+  lines.unshift(`-----BEGIN ${heading}-----`)
+  lines.push(`-----END ${heading}-----`)
+  return lines.join('\n')
 }
 
 const rx_pem_ec_private_key = /-----BEGIN EC PRIVATE KEY-----\n([^-]*)-----END EC PRIVATE KEY-----/
@@ -121,11 +190,23 @@ function encodePrivateKey(ecdh, enc='pem') {
 
 
 
-function loadPublicKey(pem_key_string, encoding) {
-  const key = decodePublicKey(pem_key_string)
-  var public_key = key.public_key.data
-  if (encoding) public_key = public_key.toString(encoding)
-  return {curve: key.curve, public_key}
+function loadPublicKey(content, encoding) {
+  if (content.public_key && content.curve) {
+    const ecdh = ec_pem(null, content.curve)
+    ecdh.setPublicKey(content.public_key)
+    return ecdh
+  } else if (!rx_pem_public_key.test(content))
+    throw new Error("Not a valid PEM formatted EC public key")
+
+  const key = decodePublicKey(content)
+  if (null != encoding) {
+    var public_key = key.public_key.data.toString(encoding)
+    return {curve: key.curve, public_key}
+  }
+
+  const ecdh = ec_pem(null, key.curve)
+  ecdh.setPublicKey(key.public_key.data)
+  return ecdh
 }
 
 const rx_pem_public_key = /-----BEGIN PUBLIC KEY-----\n([^-]*)-----END PUBLIC KEY-----/

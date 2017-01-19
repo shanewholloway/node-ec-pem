@@ -3,6 +3,7 @@ const assert = require('assert')
 const crypto = require('crypto')
 const ec_pem = require('../ec_pem')
 
+const curve = 'secp521r1'
 const keys = {
   priv: ['-----BEGIN EC PRIVATE KEY-----',
          'ME8CAQEEQYEYjwI7+EZlaLR9bVFluK0Jv57LFl+EgDdvCabqjUuW2IhxGC4ZylGd',
@@ -18,7 +19,7 @@ const keys = {
 
 describe('test key exchange', () => {
   it('should work', () => {
-    const alice = crypto.createECDH('secp521r1')
+    const alice = crypto.createECDH(curve)
     alice.generateKeys()
 
     const bob = ec_pem.loadPrivateKey(keys.priv)
@@ -27,10 +28,55 @@ describe('test key exchange', () => {
     const bob_key = ec_pem.loadPublicKey(keys.pub, 'hex')
     const alice_secret = alice.computeSecret(bob_key.public_key, 'hex', 'hex')
 
-    //console.log({equal: bob_secret == alice_secret, bob_secret, alice_secret})
     assert.equal(bob_secret, alice_secret)
 
+    const bob_key_ec = ec_pem.loadPublicKey(keys.pub)
+    const alice_secret_ec = alice.computeSecret(bob_key_ec.getPublicKey())
+
+    assert.equal(bob_secret, alice_secret_ec.toString('hex'))
+
     assert.equal(bob_key.public_key, bob.getPublicKey('hex'))
+    assert.equal(bob_key_ec.getPublicKey('hex'), bob.getPublicKey('hex'))
+
   })
 })
 
+describe('test key store/load/clone roundtrips', () => {
+  let bob_private, bob_public
+  before(() => {
+    bob_private = ec_pem.loadPrivateKey(keys.priv)
+    bob_public = ec_pem.loadPublicKey(keys.pub)
+  })
+
+  it('should round trip private_key through JSON', () =>
+    assert.deepEqual(
+      ec_pem.fromJSON(JSON.parse(JSON.stringify(bob_private))).toJSON(),
+      {curve, private_key: bob_private.getPrivateKey('base64')}) )
+
+  it('should round trip public_key through JSON', () =>
+    assert.deepEqual(
+      ec_pem.fromJSON(JSON.parse(JSON.stringify(bob_public))).toJSON(),
+      {curve, public_key: bob_public.getPublicKey('base64')}) )
+
+  it('should round load private_key from JSON', () =>
+    assert.deepEqual(
+      ec_pem.load(JSON.parse(JSON.stringify(bob_private))).toJSON(),
+      {curve, private_key: bob_private.getPrivateKey('base64')}) )
+
+  it('should round load public_key from JSON', () =>
+    assert.deepEqual(
+      ec_pem.load(JSON.parse(JSON.stringify(bob_public))).toJSON(),
+      {curve, public_key: bob_public.getPublicKey('base64')}) )
+
+  it('should clone properly', () => {
+    assert.deepEqual(bob_public.toJSON(), bob_public.clone().toJSON())
+    assert.deepEqual(bob_public.toJSON(), bob_private.clone('public').toJSON())
+    assert.deepEqual(bob_private.toJSON(), bob_private.clone().toJSON())
+  })
+
+  it('should clone public properly', () =>
+    assert.deepEqual(bob_public.toJSON(), bob_private.clone('public').toJSON()) )
+
+  it('should clone private properly', () =>
+    assert.deepEqual(bob_private.toJSON(), bob_private.clone('private').toJSON()) )
+})
