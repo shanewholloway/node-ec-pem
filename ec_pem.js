@@ -8,7 +8,7 @@ const ec_pem_api = {
     sign(algorithm, ...optionalArgs) { return sign(this, algorithm, ...optionalArgs) },
     verify(algorithm, ...optionalArgs) { return verify(this, algorithm, ...optionalArgs) },
     clone(kind) { return clone(this, kind) },
-    toJSON() { return toJSON(this) },
+    toJSON(kind) { console.log({args: [].slice.call(arguments)}); return toJSON(this, kind) },
 }
 
 const curveByKeySize = {
@@ -85,7 +85,7 @@ function clone(ecdh, kind) {
     copy.setPrivateKey(ecdh.getPrivateKey())
     return copy
 
-  case false: case 'public':
+  case 'public': case false:
     copy.setPublicKey(ecdh.getPublicKey())
     return copy
 
@@ -93,14 +93,27 @@ function clone(ecdh, kind) {
     try { copy.setPrivateKey(ecdh.getPrivateKey()) }
     catch (err) { copy.setPublicKey(ecdh.getPublicKey()) }
     return copy
+
+  default: throw new Error('Invalid kind for ec-pem::clone')
   }
 }
 
-function toJSON(ecdh) {
+function toJSON(ecdh, kind) {
   let obj = {curve: ecdh.curve}
-  try { obj.private_key = ecdh.getPrivateKey('base64') }
-  catch (err) { obj.public_key = ecdh.getPublicKey('base64') }
-  return obj
+  switch (kind) {
+  case 'private':
+    obj.private_key = ecdh.getPrivateKey('base64')
+    return obj
+
+  case 'public': case false:
+    obj.public_key = ecdh.getPublicKey('base64')
+    return obj
+
+  case true: case null: case undefined: default:
+    try { obj.private_key = ecdh.getPrivateKey('base64') }
+    catch (err) { obj.public_key = ecdh.getPublicKey('base64') }
+    return obj
+  }
 }
 function fromJSON(obj) {
   let ecdh = ec_pem(null, obj.curve)
