@@ -48,25 +48,45 @@ describe('test key store/load/clone roundtrips', () => {
     bob_public = ec_pem.loadPublicKey(keys.pub)
   })
 
+  it('should round trip private_key through Base64', () =>
+    assert.deepEqual(
+      ec_pem.fromBase64(bob_private.toBase64()).toJSON(),
+      {curve, private_key: ec_pem.asUrlSafeBase64(bob_private.getPrivateKey('base64'))}) )
+
+  it('should round trip public_key through Base64', () =>
+    assert.deepEqual(
+      ec_pem.fromBase64(bob_public.toBase64()).toJSON(),
+      {curve, public_key: ec_pem.asUrlSafeBase64(bob_public.getPublicKey('base64'))}) )
+
+  it('should round load private_key from Base64', () =>
+    assert.deepEqual(
+      ec_pem.load(bob_private.toBase64()).toJSON(),
+      {curve, private_key: ec_pem.asUrlSafeBase64(bob_private.getPrivateKey('base64'))}) )
+
+  it('should round load public_key from Base64', () =>
+    assert.deepEqual(
+      ec_pem.load(bob_public.toBase64()).toJSON(),
+      {curve, public_key: ec_pem.asUrlSafeBase64(bob_public.getPublicKey('base64'))}) )
+
   it('should round trip private_key through JSON', () =>
     assert.deepEqual(
       ec_pem.fromJSON(JSON.parse(JSON.stringify(bob_private))).toJSON(),
-      {curve, private_key: bob_private.getPrivateKey('base64')}) )
+      {curve, private_key: ec_pem.asUrlSafeBase64(bob_private.getPrivateKey('base64'))}) )
 
   it('should round trip public_key through JSON', () =>
     assert.deepEqual(
       ec_pem.fromJSON(JSON.parse(JSON.stringify(bob_public))).toJSON(),
-      {curve, public_key: bob_public.getPublicKey('base64')}) )
+      {curve, public_key: ec_pem.asUrlSafeBase64(bob_public.getPublicKey('base64'))}) )
 
   it('should round load private_key from JSON', () =>
     assert.deepEqual(
       ec_pem.load(JSON.parse(JSON.stringify(bob_private))).toJSON(),
-      {curve, private_key: bob_private.getPrivateKey('base64')}) )
+      {curve, private_key: ec_pem.asUrlSafeBase64(bob_private.getPrivateKey('base64'))}) )
 
   it('should round load public_key from JSON', () =>
     assert.deepEqual(
       ec_pem.load(JSON.parse(JSON.stringify(bob_public))).toJSON(),
-      {curve, public_key: bob_public.getPublicKey('base64')}) )
+      {curve, public_key: ec_pem.asUrlSafeBase64(bob_public.getPublicKey('base64'))}) )
 
   it('should clone properly', () => {
     assert.deepEqual(bob_public.toJSON(), bob_public.clone().toJSON())

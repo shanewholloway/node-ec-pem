@@ -8,7 +8,8 @@ const ec_pem_api = {
     sign(algorithm, ...optionalArgs) { return sign(this, algorithm, ...optionalArgs) },
     verify(algorithm, ...optionalArgs) { return verify(this, algorithm, ...optionalArgs) },
     clone(kind) { return clone(this, kind) },
-    toJSON(kind) { console.log({args: [].slice.call(arguments)}); return toJSON(this, kind) },
+    toJSON(kind) { return toJSON(this, kind) },
+    toBase64(kind) { return toBase64(this, kind) },
 }
 
 const curveByKeySize = {
@@ -56,7 +57,7 @@ exports = module.exports = Object.assign(ec_pem, {
   ec_pem, ec_pem_api, generate, load, decode, sign, verify,
   loadPrivateKey, decodePrivateKey, encodePrivateKey,
   loadPublicKey, decodePublicKey, encodePublicKey,
-  clone, toJSON, fromJSON,
+  clone, toJSON, fromJSON, toBase64, fromBase64, asUrlSafeBase64,
   inferCurve, inferCurveByLengths,
   pemDecodeRaw, pemEncodeRaw })
 
@@ -98,20 +99,28 @@ function clone(ecdh, kind) {
   }
 }
 
+function asUrlSafeBase64(sz) {
+  // See [modified Base64 for URL](https://en.wikipedia.org/wiki/Base64#URL_applications)
+  //  > …where the '+' and '/' characters of standard Base64 are respectively replaced by '-' and '_' … omitting the padding '='
+  // Note: Buffer.from(sz, 'base64') correctly interprets this variant. String::toString('base64') just cannot produce it, unfortunately.
+  if (sz && Buffer.isBuffer(sz)) sz = sz.toString('base64')
+  return sz.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/g,'')
+}
+
 function toJSON(ecdh, kind) {
   let obj = {curve: ecdh.curve}
   switch (kind) {
   case 'private':
-    obj.private_key = ecdh.getPrivateKey('base64')
+    obj.private_key = asUrlSafeBase64(ecdh.getPrivateKey('base64'))
     return obj
 
   case 'public': case false:
-    obj.public_key = ecdh.getPublicKey('base64')
+    obj.public_key = asUrlSafeBase64(ecdh.getPublicKey('base64'))
     return obj
 
   case true: case null: case undefined: default:
-    try { obj.private_key = ecdh.getPrivateKey('base64') }
-    catch (err) { obj.public_key = ecdh.getPublicKey('base64') }
+    try { obj.private_key = asUrlSafeBase64(ecdh.getPrivateKey('base64')) }
+    catch (err) { obj.public_key = asUrlSafeBase64(ecdh.getPublicKey('base64')) }
     return obj
   }
 }
@@ -124,6 +133,48 @@ function fromJSON(obj) {
   return ecdh
 }
 
+const rx_base64_encoded = /[A-Za-z0-9.+/=_-]/
+function toBase64(ecdh, kind) {
+  let hdr = {curve: ecdh.curve}
+  let b64_ec_key
+
+  switch (kind) {
+  case 'private':
+    b64_ec_key = asUrlSafeBase64(ecdh.getPrivateKey('base64'))
+    hdr.kind = 'private'
+    break
+
+  case 'public': case false:
+    b64_ec_key = asUrlSafeBase64(ecdh.getPublicKey('base64'))
+    hdr.kind = 'public'
+    break
+
+  case true: case null: case undefined: default:
+    try {
+      b64_ec_key = asUrlSafeBase64(ecdh.getPrivateKey('base64'))
+      hdr.kind = 'private'
+    } catch (err) {
+      b64_ec_key = asUrlSafeBase64(ecdh.getPublicKey('base64'))
+      hdr.kind = 'public'
+    }
+    break
+  }
+  const b64_hdr = asUrlSafeBase64(Buffer(JSON.stringify(hdr)).toString('base64'))
+  return `${b64_hdr}.${b64_ec_key}`
+}
+function fromBase64(content) {
+  const parts = content.split('.')
+    .map(part => Buffer.from(part, 'base64'))
+  const hdr = JSON.parse(parts[0].toString())
+
+  let ecdh = ec_pem(null, hdr.curve)
+  if ('public' === hdr.kind)
+    ecdh.setPublicKey(parts[1])
+  else if ('private' === hdr.kind)
+    ecdh.setPrivateKey(parts[1])
+  return ecdh
+}
+
 function load(content) {
   if (content.curve)
     return fromJSON(content)
@@ -131,6 +182,8 @@ function load(content) {
     return loadPrivateKey(content)
   if (rx_pem_public_key.test(content))
     return loadPublicKey(content)
+  if (rx_base64_encoded.test(content))
+    return fromBase64(content)
   throw new Error("Not a valid PEM formatted EC key")
 }
 function decode(pem_key_string) {
