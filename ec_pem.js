@@ -3,13 +3,16 @@ const crypto = require('crypto')
 const asn1 = require('asn1.js')
 
 const ec_pem_api = {
-    encodePrivateKey(enc) { return encodePrivateKey(this, enc) },
-    encodePublicKey(enc) { return encodePublicKey(this, enc) },
-    sign(algorithm, ...optionalArgs) { return sign(this, algorithm, ...optionalArgs) },
-    verify(algorithm, ...optionalArgs) { return verify(this, algorithm, ...optionalArgs) },
-    clone(kind) { return clone(this, kind) },
-    toJSON(kind) { return toJSON(this, kind) },
-    toBase64(kind) { return toBase64(this, kind) },
+  __proto__: Object.getPrototypeOf(crypto.createECDH('prime256v1')),
+  encodePrivateKey(enc) { return encodePrivateKey(this, enc) },
+  encodePublicKey(enc) { return encodePublicKey(this, enc) },
+  sign(algorithm, ...optionalArgs) { return sign(this, algorithm, ...optionalArgs) },
+  verify(algorithm, ...optionalArgs) { return verify(this, algorithm, ...optionalArgs) },
+  clone(kind) { return clone(this, kind) },
+  toPublicJSON(kind) { return toPublicJSON(this, kind) },
+  toPrivateJSON(kind) { return toPrivateJSON(this, kind) },
+  toPublicBase64(kind) { return toPublicBase64(this, kind) },
+  toPrivateBase64(kind) { return toPrivateBase64(this, kind) },
 }
 
 const curveByKeySize = {
@@ -50,14 +53,20 @@ function ec_pem(ecdh, curve) {
 
   if (null == ecdh)
     ecdh = crypto.createECDH(curve)
-  return Object.assign(ecdh, ec_pem_api, {curve})
+
+  Object.setPrototypeOf(ecdh, ec_pem_api)
+  ecdh.curve = curve
+  return ecdh
 }
 
 exports = module.exports = Object.assign(ec_pem, {
   ec_pem, ec_pem_api, generate, load, decode, sign, verify,
   loadPrivateKey, decodePrivateKey, encodePrivateKey,
   loadPublicKey, decodePublicKey, encodePublicKey,
-  clone, toJSON, fromJSON, toBase64, fromBase64, asUrlSafeBase64,
+  clone,
+  asUrlSafeBase64,
+  toPrivateJSON, toPublicJSON, fromJSON,
+  toPrivateBase64, toPublicBase64, fromBase64,
   inferCurve, inferCurveByLengths,
   pemDecodeRaw, pemEncodeRaw })
 
@@ -99,30 +108,21 @@ function clone(ecdh, kind) {
   }
 }
 
+// rx_base64_encoded includes url-safe characters and the '.' separator
+const rx_base64_encoded = /^[A-Za-z0-9.+/=_-]+$/
 function asUrlSafeBase64(sz) {
   // See [modified Base64 for URL](https://en.wikipedia.org/wiki/Base64#URL_applications)
   //  > …where the '+' and '/' characters of standard Base64 are respectively replaced by '-' and '_' … omitting the padding '='
   // Note: Buffer.from(sz, 'base64') correctly interprets this variant. String::toString('base64') just cannot produce it, unfortunately.
   if (sz && Buffer.isBuffer(sz)) sz = sz.toString('base64')
-  return sz.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/g,'')
+  return sz.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'')
 }
 
-function toJSON(ecdh, kind) {
-  let obj = {curve: ecdh.curve}
-  switch (kind) {
-  case 'private':
-    obj.private_key = asUrlSafeBase64(ecdh.getPrivateKey('base64'))
-    return obj
-
-  case 'public': case false:
-    obj.public_key = asUrlSafeBase64(ecdh.getPublicKey('base64'))
-    return obj
-
-  case true: case null: case undefined: default:
-    try { obj.private_key = asUrlSafeBase64(ecdh.getPrivateKey('base64')) }
-    catch (err) { obj.public_key = asUrlSafeBase64(ecdh.getPublicKey('base64')) }
-    return obj
-  }
+function toPrivateJSON(ecdh) {
+  return {curve: ecdh.curve, private_key: asUrlSafeBase64(ecdh.getPrivateKey('base64'))}
+}
+function toPublicJSON(ecdh, format='compressed') {
+  return {curve: ecdh.curve, public_key: asUrlSafeBase64(ecdh.getPublicKey('base64', format))}
 }
 function fromJSON(obj) {
   let ecdh = ec_pem(null, obj.curve)
@@ -133,34 +133,15 @@ function fromJSON(obj) {
   return ecdh
 }
 
-const rx_base64_encoded = /[A-Za-z0-9.+/=_-]/
-function toBase64(ecdh, kind) {
-  let hdr = {curve: ecdh.curve}
-  let b64_ec_key
-
-  switch (kind) {
-  case 'private':
-    b64_ec_key = asUrlSafeBase64(ecdh.getPrivateKey('base64'))
-    hdr.kind = 'private'
-    break
-
-  case 'public': case false:
-    b64_ec_key = asUrlSafeBase64(ecdh.getPublicKey('base64'))
-    hdr.kind = 'public'
-    break
-
-  case true: case null: case undefined: default:
-    try {
-      b64_ec_key = asUrlSafeBase64(ecdh.getPrivateKey('base64'))
-      hdr.kind = 'private'
-    } catch (err) {
-      b64_ec_key = asUrlSafeBase64(ecdh.getPublicKey('base64'))
-      hdr.kind = 'public'
-    }
-    break
-  }
-  const b64_hdr = asUrlSafeBase64(Buffer(JSON.stringify(hdr)).toString('base64'))
-  return `${b64_hdr}.${b64_ec_key}`
+function toPrivateBase64(ecdh) {
+  const hdr = JSON.stringify({curve: ecdh.curve, kind: 'private'})
+  const b64_key = ecdh.getPrivateKey('base64')
+  return asUrlSafeBase64(`${Buffer(hdr).toString('base64')}.${b64_key}`)
+}
+function toPublicBase64(ecdh, format='compressed') {
+  const hdr = JSON.stringify({curve: ecdh.curve, kind: 'public'})
+  const b64_key = ecdh.getPublicKey('base64', format)
+  return asUrlSafeBase64(`${Buffer(hdr).toString('base64')}.${b64_key}`)
 }
 function fromBase64(content) {
   const parts = content.split('.')
