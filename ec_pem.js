@@ -294,14 +294,14 @@ function sign(ecdh, algorithm, ...args) {
   let _do_sign = sign.sign
   sign.sign = signature_format =>
     _do_sign.call(sign, encodePrivateKey(ecdh, 'pem'), signature_format)
-  return args ? sign.update(...args) : sign }
+  return args.length ? sign.update(...args) : sign }
 
 function verify(ecdh, algorithm, ...args) {
   let verify = crypto.createVerify(algorithm)
   let _do_verify = verify.verify
   verify.verify = (signature, signature_format) =>
     _do_verify.call(verify, encodePublicKey(ecdh, 'pem'), signature, signature_format)
-  return args ? verify.update(...args) : verify }
+  return args.length ? verify.update(...args) : verify }
 
 
 
