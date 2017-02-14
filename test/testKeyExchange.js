@@ -68,6 +68,27 @@ describe('test key store/load/clone roundtrips', () => {
       ec_pem.load(bob_public.toPublicBase64()).toPublicJSON(),
       {curve, public_key: ec_pem.asUrlSafeBase64(bob_public.getPublicKey('base64', 'compressed'))}) )
 
+// --
+  it('should round trip private_key through Buffer', () =>
+    assert.deepEqual(
+      ec_pem.fromBuffer(bob_private.toPrivateBuffer()).toPrivateJSON(),
+      bob_private.toPrivateJSON()))
+
+  it('should round trip public_key through Buffer', () =>
+    assert.deepEqual(
+      ec_pem.fromBuffer(bob_public.toPublicBuffer()).toPublicJSON(),
+      bob_public.toPublicJSON()))
+
+  it('should round load private_key from Base64', () =>
+    assert.deepEqual(
+      ec_pem.load(bob_private.toPrivateBuffer()).toPrivateJSON(),
+      bob_private.toPrivateJSON()))
+
+  it('should round load public_key from Base64', () =>
+    assert.deepEqual(
+      ec_pem.load(bob_public.toPublicBuffer()).toPublicJSON(),
+      bob_public.toPublicJSON()))
+
   it('should clone properly', () => {
     assert.deepEqual(bob_public.toPublicJSON(), bob_public.clone().toPublicJSON())
     assert.deepEqual(bob_public.toPublicJSON(), bob_private.clone('public').toPublicJSON())
@@ -76,7 +97,11 @@ describe('test key store/load/clone roundtrips', () => {
 
   it('should clone public properly', () =>
     assert.deepEqual(bob_public.toPublicJSON(), bob_private.clone('public').toPublicJSON()) )
+  it('should clonePublic properly', () =>
+    assert.deepEqual(bob_public.toPublicJSON(), bob_private.clonePublic().toPublicJSON()) )
 
   it('should clone private properly', () =>
     assert.deepEqual(bob_private.toPrivateJSON(), bob_private.clone('private').toPrivateJSON()) )
+  it('should clonePrivate properly', () =>
+    assert.deepEqual(bob_private.toPrivateJSON(), bob_private.clonePrivate().toPrivateJSON()) )
 })

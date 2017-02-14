@@ -9,10 +9,14 @@ const ec_pem_api = {
   sign(algorithm, ...optionalArgs) { return sign(this, algorithm, ...optionalArgs) },
   verify(algorithm, ...optionalArgs) { return verify(this, algorithm, ...optionalArgs) },
   clone(kind) { return clone(this, kind) },
-  toPublicJSON(kind) { return toPublicJSON(this, kind) },
-  toPrivateJSON(kind) { return toPrivateJSON(this, kind) },
-  toPublicBase64(kind) { return toPublicBase64(this, kind) },
-  toPrivateBase64(kind) { return toPrivateBase64(this, kind) },
+  clonePublic(kind) { return clonePublic(this) },
+  clonePrivate(kind) { return clonePrivate(this) },
+  toPublicJSON(format) { return toPublicJSON(this, format) },
+  toPrivateJSON() { return toPrivateJSON(this) },
+  toPublicBase64(format) { return toPublicBase64(this, format) },
+  toPrivateBase64() { return toPrivateBase64(this) },
+  toPublicBuffer(format) { return toPublicBuffer(this, format) },
+  toPrivateBuffer() { return toPrivateBuffer(this) },
 }
 
 const curveByKeySize = {
@@ -63,10 +67,11 @@ exports = module.exports = Object.assign(ec_pem, {
   ec_pem, ec_pem_api, generate, load, decode, sign, verify,
   loadPrivateKey, decodePrivateKey, encodePrivateKey,
   loadPublicKey, decodePublicKey, encodePublicKey,
-  clone,
+  clonePrivate, clonePublic, clone,
   asUrlSafeBase64,
   toPrivateJSON, toPublicJSON, fromJSON,
   toPrivateBase64, toPublicBase64, fromBase64,
+  toPrivateBuffer, toPublicBuffer, fromBuffer,
   inferCurve, inferCurveByLengths,
   pemDecodeRaw, pemEncodeRaw })
 
@@ -88,18 +93,25 @@ function generate(curve) {
   return ec_pem(ecdh, curve)
 }
 
-function clone(ecdh, kind) {
+function clonePublic(ecdh) {
   let copy = ec_pem(null, ecdh.curve)
+    copy.setPrivateKey(ecdh.getPrivateKey())
+  return copy
+}
+function clonePrivate(ecdh) {
+  let copy = ec_pem(null, ecdh.curve)
+  copy.setPrivateKey(ecdh.getPrivateKey())
+  return copy
+}
+function clone(ecdh, kind) {
   switch (kind) {
   case 'private':
-    copy.setPrivateKey(ecdh.getPrivateKey())
-    return copy
-
+    return clonePrivate(ecdh)
   case 'public': case false:
-    copy.setPublicKey(ecdh.getPublicKey())
-    return copy
+    return clonePublic(ecdh)
 
   case true: case null: case undefined:
+    let copy = ec_pem(null, ecdh.curve)
     try { copy.setPrivateKey(ecdh.getPrivateKey()) }
     catch (err) { copy.setPublicKey(ecdh.getPublicKey()) }
     return copy
@@ -156,7 +168,29 @@ function fromBase64(content) {
   return ecdh
 }
 
+function toPrivateBuffer(ecdh) {
+  const pre = `ec:${ecdh.curve}\0`
+  return Buffer.concat([Buffer(pre), ecdh.getPrivateKey(null)])
+}
+function toPublicBuffer(ecdh, format='compressed') {
+  const pre = `ec_pub:${ecdh.curve}\0`
+  return Buffer.concat([Buffer(pre, 'ascii'), ecdh.getPublicKey(null, format)])
+}
+function fromBuffer(buf) {
+  const idx0 = buf.indexOf(0)
+  const [kind,curve] = buf.asciiSlice(0, idx0).split(':', 2)
+  const key = buf.slice(idx0+1)
+  let ecdh = ec_pem(null, curve)
+  if ('ec_pub' === kind)
+    ecdh.setPublicKey(key)
+  else if ('ec' === kind)
+    ecdh.setPrivateKey(key)
+  return ecdh
+}
+
 function load(content) {
+  if (Buffer.isBuffer(content))
+    return fromBuffer(content)
   if (content.curve)
     return fromJSON(content)
   if (rx_pem_ec_private_key.test(content))
