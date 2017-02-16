@@ -141,30 +141,34 @@ const example_subjects = {
   OU: 'example org unit', // organizational unit
 }
 
-// openssl req -new -key /dev/stdin [-x509] -subj "/CN=example.com" < «ec private key»
+// openssl req -new -key «ec private key» [-x509] -subj "/CN=example.com"
 function openssl_req(options, ec) {
   if ('string' === typeof options)
     options = {self_sign: true, subjects: {CN: options}}
 
-  return tmpfile(options.config).then(tmp_config => {
-    let args = ['req', '-new', '-sha256', '-key', '/dev/stdin']
+  return Promise.all([
+      tmpfile(options.config),
+      tmpfile(ec_pem.encodePrivateKey(ec)) ])
+    .then(tmpList => {
+      const [tmp_config, tmp_key] = tmpList
+      let args = ['req', '-new', '-sha256', '-key', tmp_key.path]
 
 
-    if (tmp_config)
-      args.push('-config', tmp_config.path)
+      if (tmp_config)
+        args.push('-config', tmp_config.path)
 
-    if (options.self_sign) {
-      args.push('-x509', '-extensions', 'v3_req', '-days', options.days || 1)
-    }
+      if (options.self_sign) {
+        args.push('-x509', '-extensions', 'v3_req', '-days', options.days || 1)
+      }
 
-    args = args.filter(e => e)
-    return openssl_cmd(args, {input: ec_pem.encodePrivateKey(ec)})
-      .then(resp => {
-        if (tmp_config) tmp_config.cleanup()
-        return resp.stdout }) })}
+      args = args.filter(e => e)
+      return openssl_cmd(args)
+        .then(resp => {
+          tmpList.forEach(e => e && e.cleanup())
+          return resp.stdout }) })}
 
 
-// openssl x509 -req -in «/tmp/.../csr.pem» -CAkey /dev/stdin < «ec private key»
+// openssl x509 -req -in «/tmp/.../csr.pem» -CAkey «ec private key»
 function openssl_x509(csr, ca_key, ca_cert, options) {
   if (!options) options = {}
   if (!ca_cert)
@@ -176,16 +180,17 @@ function openssl_x509(csr, ca_key, ca_cert, options) {
   return Promise.all([
       tmpfile(csr.csr || csr),
       tmpfile(ca_cert.cert || ca_cert),
-      tmpfile(options.extensions) ])
+      tmpfile(options.extensions),
+      tmpfile(ec_pem.encodePrivateKey(ca_key)) ])
     .then(tmpList => {
-      const [tmp_csr, tmp_ca_cert, tmp_ext] = tmpList
+      const [tmp_csr, tmp_ca_cert, tmp_ext, tmp_ca_key] = tmpList
 
       let args = ['x509', '-req', '-sha256']
       args.push('-days', options.days || 1, '-set_serial', options.serial || '00')
       args.push('-extensions', 'v3_req', '-extfile', tmp_ext.path)
-      args.push('-in', tmp_csr.path, '-CA', tmp_ca_cert.path, '-CAkey', '/dev/stdin')
+      args.push('-in', tmp_csr.path, '-CA', tmp_ca_cert.path, '-CAkey', tmp_ca_key.path)
 
-      return openssl_cmd(args, {input: ec_pem.encodePrivateKey(ca_key)})
+      return openssl_cmd(args)
         .then(resp => {
           tmpList.forEach(e => e && e.cleanup())
           return resp.stdout }) })}
