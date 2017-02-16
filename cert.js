@@ -214,7 +214,7 @@ function openssl_cmd(args, options) {
 
 
 // child_process.spawn with {stdout, stderr}, Promises
-function spawn_cmd(comand, args, options) {
+function spawn_cmd(command, args, options) {
   if (!options) options = {}
 
   return new Promise((resolve, reject) => {
@@ -222,7 +222,7 @@ function spawn_cmd(comand, args, options) {
     let finish = () =>
       ({stdout: io.stdout.join(''), stderr: io.stderr.join('')})
 
-    let child = child_process.spawn(comand, args,
+    let child = child_process.spawn(command, args,
       Object.assign({stdio:'pipe'}, options))
 
     if (options.input) {
