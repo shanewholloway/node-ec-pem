@@ -9,7 +9,7 @@ const ec_pem = require('./ec_pem')
 function _unpackSigningArgs(options, ec) {
   if (ec !== undefined)
     return [options || {}, ec]
-  if (options.generateKeys)
+  if ('function' === typeof options.generateKeys)
     return [{}, ec=options]
   if (ec == null)
     ec = options.ec || ec_pem.generate('prime256v1')
@@ -98,6 +98,8 @@ function createSignedCertificate(csr, ca_key, ca_cert, options) {
     throw new Error("Parameter 'csr' is required. (e.g. csr = generateCertificateSigningRequest('example.com', ec))")
   if (ca_key == null)
     throw new Error("Parameter 'ca_key' is required. (e.g. ca_key = ec_pem.generate('prime256v1'))")
+  else if ('function' !== typeof ca_key.generateKeys)
+    ca_key = ec_pem.load(ca_key)
   if (ca_cert == null)
     throw new Error("Parameter 'ca_cert' is required. (e.g. ca_cert = createSelfSignedCertificate('example.com', ca_key))")
 
