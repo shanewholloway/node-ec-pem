@@ -166,15 +166,14 @@ describe('test EC signing a CSR', () => {
 
 describe('test using EC actual signed certificate', () => {
   const altNames = ['localhost', '127.0.0.1']
-  let ec, csr, ec_ca, ec_ca_cert, cert, cert_options
+  let ec, csr, ec_ca_cert, cert, cert_options
   before(() => {
     ec = ec_pem.generate('prime256v1')
     csr = ec_cert.generateCSR('localhost',
       {ec, altNames})
 
-    ec_ca = ec_pem.loadPrivateKey(test_data.priv)
     ec_ca_cert = test_data.cert.join('\n')
-    cert = ec_cert.createSignedCertificate(csr, ec_ca, ec_ca_cert,
+    cert = ec_cert.createSignedCertificate(csr, test_data.priv, ec_ca_cert,
       {altNames})
 
     cert_options = ec_cert.asTLSOptions(cert, ec)

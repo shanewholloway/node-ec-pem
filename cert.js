@@ -9,7 +9,7 @@ const ec_pem = require('./ec_pem')
 function _unpackSigningArgs(options, ec) {
   if (ec !== undefined)
     return [options || {}, ec]
-  if ('function' === typeof options.generateKeys)
+  if (options && 'function' === typeof options.generateKeys)
     return [{}, ec=options]
   if (ec == null)
     ec = options.ec || ec_pem.generate('prime256v1')
@@ -212,10 +212,14 @@ function openssl_inspect(args, input) {
     .then(resp => { return resp.stdout }) }
 
 
+let _openssl_binary = 'openssl'
+function use_openssl_binary(pathToOpenSSL) {
+  _openssl_binary = pathToOpenSSL }
+
 let _openssl_queue = Promise.resolve()
 function openssl_cmd(args, options) {
   const tip = _openssl_queue.then(() =>
-    spawn_cmd('openssl', args, options))
+    spawn_cmd(_openssl_binary, args, options))
   _openssl_queue = tip
   return tip }
 
@@ -282,7 +286,7 @@ Object.assign(exports, {
   asTLSOptions,
   asCertRequestArgs, configForOpenSSLRequest,
 
-  openssl_req, openssl_x509, openssl_cmd, openssl_inspect,
+  openssl_req, openssl_x509, openssl_cmd, openssl_inspect, use_openssl_binary,
   spawn_cmd,
 })
 
