@@ -188,7 +188,7 @@ function openssl_x509(csr, ca_key, ca_cert, options) {
       const [tmp_csr, tmp_ca_cert, tmp_ext, tmp_ca_key] = tmpList
 
       let args = ['x509', '-req', '-sha256']
-      args.push('-days', options.days || 1, '-set_serial', options.serial || '00')
+      args.push('-days', options.days || 1, '-set_serial', options.serial || Date.now().toString())
       args.push('-extensions', 'v3_req', '-extfile', tmp_ext.path)
       args.push('-in', tmp_csr.path, '-CA', tmp_ca_cert.path, '-CAkey', tmp_ca_key.path)
 
