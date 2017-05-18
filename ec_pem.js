@@ -13,8 +13,8 @@ const ec_pem_api = {
   clonePrivate() { return clonePrivate(this) },
   toPublicJSON(format) { return toPublicJSON(this, format) },
   toPrivateJSON() { return toPrivateJSON(this) },
-  toPublicBase64(format) { return toPublicBase64(this, format) },
-  toPrivateBase64() { return toPrivateBase64(this) },
+  toPublicBase64(extra, format) { return toPublicBase64(this, extra, format) },
+  toPrivateBase64(extra) { return toPrivateBase64(this, extra) },
   toPublicBuffer(format) { return toPublicBuffer(this, format) },
   toPrivateBuffer() { return toPrivateBuffer(this) },
 }
@@ -145,13 +145,16 @@ function fromJSON(obj) {
   return ecdh
 }
 
-function toPrivateBase64(ecdh) {
-  const hdr = JSON.stringify({curve: ecdh.curve, kind: 'private'})
+function toPrivateBase64(ecdh, extra) {
+  const hdr = JSON.stringify(Object.assign({curve: ecdh.curve, kind: 'private'}, extra))
   const b64_key = ecdh.getPrivateKey('base64')
   return asUrlSafeBase64(`${Buffer(hdr).toString('base64')}.${b64_key}`)
 }
-function toPublicBase64(ecdh, format='compressed') {
-  const hdr = JSON.stringify({curve: ecdh.curve, kind: 'public'})
+function toPublicBase64(ecdh, extra, format='compressed') {
+  if ('string' === typeof extra) {
+    format = extra; extra = null
+  }
+  const hdr = JSON.stringify(Object.assign({curve: ecdh.curve, kind: 'public'}, extra))
   const b64_key = ecdh.getPublicKey('base64', format)
   return asUrlSafeBase64(`${Buffer(hdr).toString('base64')}.${b64_key}`)
 }
@@ -161,6 +164,7 @@ function fromBase64(content) {
   const hdr = JSON.parse(parts[0].toString())
 
   let ecdh = ec_pem(null, hdr.curve)
+  ecdh.header = hdr
   if ('public' === hdr.kind)
     ecdh.setPublicKey(parts[1])
   else if ('private' === hdr.kind)
