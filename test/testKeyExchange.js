@@ -95,6 +95,12 @@ describe('test key store/load/clone roundtrips', () => {
     assert.deepEqual(bob_private.toPrivateJSON(), bob_private.clone().toPrivateJSON())
   })
 
+  it('public clones should throw when private key is accessed', () => {
+    assert.throws(() => bob_public.toPrivateJSON())
+    assert.throws(() => bob_private.clone('public').toPrivateJSON())
+    assert.throws(() => bob_private.clonePublic().toPrivateJSON())
+  })
+
   it('should clone public properly', () =>
     assert.deepEqual(bob_public.toPublicJSON(), bob_private.clone('public').toPublicJSON()) )
   it('should clonePublic properly', () =>

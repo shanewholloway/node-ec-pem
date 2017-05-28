@@ -77,7 +77,9 @@ exports = module.exports = Object.assign(ec_pem, {
 
 
 function inferCurve(ecdh, exactlyOne) {
-  const keyLengths = [ecdh.getPublicKey().length, ecdh.getPrivateKey().length]
+  const keyLengths = [ecdh.getPublicKey().length]
+  try { keyLengths.push(ecdh.getPrivateKey().length) }
+  catch (err) {}
   return inferCurveByLengths(keyLengths, exactlyOne) }
 function inferCurveByLengths(keyLengths, exactlyOne) {
   if (Number.isInteger(keyLengths))
@@ -95,7 +97,7 @@ function generate(curve) {
 
 function clonePublic(ecdh) {
   let copy = ec_pem(null, ecdh.curve)
-    copy.setPrivateKey(ecdh.getPrivateKey())
+    copy.setPublicKey(ecdh.getPublicKey())
   return copy
 }
 function clonePrivate(ecdh) {
