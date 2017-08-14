@@ -246,7 +246,7 @@ function do_https_server_test(resolveName, cert_options, ca_list, done) {
       svr.listen(0, resolveName, () => {
         Promise.all(ca_list).then(ca =>
           https.get({hostname: resolveName, port:svr.address().port, pathname:'/', rejectUnauthorized: true, ca},
-            res => { done(res.statusCode = 211 ? null : new Error(`Wrong status code: ${res.statusCode}`)) }))
+            res => { done(211 == res.statusCode ? null : new Error(`Wrong status code: ${res.statusCode}`)) }))
       }) })
     .catch(done) }
 
