@@ -258,8 +258,7 @@ const _fs_write = (...args) =>
       (err, ans) => err ? reject(err) : resolve(ans)) )
 const _fs_close = (...args) =>
   new Promise((resolve, reject) =>
-    fs.close(...args,
-      (err, ans) => err ? reject(err) : resolve(ans)) )
+    fs.close(...args, () => resolve()) )
 
 const tmpfile = (content) =>
   Promise.resolve(content).then(content => {
@@ -274,8 +273,7 @@ const _tmpfile = (content) =>
     tmp.file((err, path, fd, cleanup) => {
       if (err) return reject(err)
       _fs_write(fd, content)
-        .catch(err => (_fs_close(fd), reject(err)))
-        .then(() => _fs_close(fd))
+        .then(() => _fs_close(fd), err => (_fs_close(fd), reject(err)))
         .then(() => resolve({path, cleanup}), reject) }))
 
 
