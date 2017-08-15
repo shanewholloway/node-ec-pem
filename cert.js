@@ -243,8 +243,8 @@ function spawn_cmd(command, args, options) {
       options.stdin.pipe(child.stdin)
 
     child.on('error', err => reject({err, __proto__: finish()}) )
-    child.on('close', exitCode => exitCode
-       ? reject({exitCode, __proto__: finish()})
+    child.on('exit', (exitCode,  exitSignal) => exitCode
+       ? reject({exitCode, exitSignal, __proto__: finish()})
        : resolve(finish()))
 
     child.stdout.on('data', data => io.stdout.push(data) )
