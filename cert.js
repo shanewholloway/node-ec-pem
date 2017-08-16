@@ -108,9 +108,14 @@ function createSignedCertificate(csr, ca_key, ca_cert, options) {
       openssl_x509(csr, ca_key, ca_cert, options)
         .then(cert => {
           const ec = csr.ec
-          const cert_chain = [cert].concat(ca_cert.cert_chain || ca_cert.cert || ca_cert)
+          const cert_chain = [cert].concat(ca_cert.cert_chain || [])
+          if ('string' === typeof ca_cert)
+            cert_chain.push(ca_cert)
+          else if (ca_cert && 'string' === typeof ca_cert.cert)
+            cert_chain.push(ca_cert.cert)
+
           cert = cert_chain.join('')
-          csr = csr.csr || csr
+          if ('string' !== typeof csr) csr = csr.csr
 
           let ans = {cert, cert_chain, ca: ca_cert, csr: csr}
           if (ec) Object.defineProperties(ans, {ec: {value: ec}})
@@ -129,8 +134,9 @@ function asTLSOptions(cert, ec) {
     if (ec == null)
       throw new Error("Parameter 'ec' is required and should be used to create cert")
 
+    if ('string' !== typeof cert) cert = cert.cert
     return Object.defineProperties(
-      {cert: cert.cert || cert, key: ec_pem.encodePrivateKey(ec)},
+      {cert, key: ec_pem.encodePrivateKey(ec)},
       {ec: {value: ec}}) })}
 
 
@@ -165,10 +171,17 @@ function openssl_req(options, ec) {
       }
 
       args = args.filter(e => e)
-      return openssl_cmd(args)
-        .then(resp => {
-          tmpList.forEach(e => e && e.cleanup())
-          return resp.stdout }) })}
+
+      const retry = n =>
+        openssl_cmd(args).then(
+            resp => {
+              if (resp.stdout) return resp.stdout
+              if (n>0) return retry(n-1) }
+          , err => {
+              if (n>0) return retry(n-1)
+              throw err })
+
+      return finallyCleanupTmpList(retry(3), tmpList) })}
 
 
 // openssl x509 -req -in «/tmp/.../csr.pem» -CAkey «ec private key»
@@ -180,9 +193,12 @@ function openssl_x509(csr, ca_key, ca_cert, options) {
   if (!options.extensions)
     options.extensions = extensionConfigForOpenSSL(options, 'v3_req')
 
+  while (csr && 'string' !== typeof csr) csr = csr.csr
+  while (ca_cert && 'string' !== typeof ca_cert) ca_cert = ca_cert.cert
+
   return Promise.all([
-      tmpfile(csr.csr || csr),
-      tmpfile(ca_cert.cert || ca_cert),
+      tmpfile(csr),
+      tmpfile(ca_cert),
       tmpfile(options.extensions),
       tmpfile(ec_pem.encodePrivateKey(ca_key)) ])
     .then(tmpList => {
@@ -193,24 +209,17 @@ function openssl_x509(csr, ca_key, ca_cert, options) {
       args.push('-extensions', 'v3_req', '-extfile', tmp_ext.path)
       args.push('-in', tmp_csr.path, '-CA', tmp_ca_cert.path, '-CAkey', tmp_ca_key.path)
 
-      return openssl_cmd(args)
-        .then(resp => {
-          tmpList.forEach(e => e && e.cleanup())
-          return resp.stdout }) })}
+      const retry = n =>
+        openssl_cmd(args).then(
+            resp => {
+              if (resp.stdout) return resp.stdout
+              if (n>0) return retry(n-1) }
+          , err => {
+              if (n>0) return retry(n-1)
+              throw err })
 
+      return finallyCleanupTmpList(retry(3), tmpList) })}
 
-openssl_inspect.presets = {
-  req: ['req', '-noout', '-text'],
-  x509: ['x509', '-noout', '-text'],
-  verify: ['verify', '-verbose'], }
-
-function openssl_inspect(args, input) {
-  if ('string' === typeof args)
-    args = openssl_inspect.presets[args] || [args]
-
-  return Promise.all([Promise.all(args), Promise.resolve(input)])
-    .then(([args, input]) => openssl_cmd(args, {input}))
-    .then(resp => { return resp.stdout }) }
 
 
 let _openssl_binary = 'openssl'
@@ -219,8 +228,8 @@ function use_openssl_binary(pathToOpenSSL) {
 
 let _openssl_queue = Promise.resolve()
 function openssl_cmd(args, options) {
-  const tip = _openssl_queue.then(() =>
-    spawn_cmd(_openssl_binary, args, options))
+  const tip = _openssl_queue.catch(()=>null)
+    .then(() => spawn_cmd(_openssl_binary, args, options))
   _openssl_queue = tip
   return tip }
 
@@ -243,9 +252,9 @@ function spawn_cmd(command, args, options) {
     } else if (options.stdin)
       options.stdin.pipe(child.stdin)
 
-    child.on('error', err => reject({err, command, args, __proto__: finish()}) )
+    child.on('error', err => reject( Object.assign({err, command, args}, finish()) ))
     child.on('exit', (exitCode,  exitSignal) => exitCode
-       ? reject({exitCode, exitSignal, command, args, __proto__: finish()})
+       ? reject( Object.assign({exitCode, exitSignal, command, args}, finish()) )
        : resolve(finish()))
 
     child.stdout.on('data', data => io.stdout.push(data) )
@@ -257,23 +266,37 @@ const _fs_write = (...args) =>
   new Promise((resolve, reject) =>
     fs.write(...args,
       (err, ans) => err ? reject(err) : resolve(ans)) )
+const _fs_fsync = (...args) =>
+  new Promise((resolve, reject) =>
+    fs.fsync(...args,
+      (err, ans) => err ? reject(err) : resolve(ans)) )
 const _fs_close = (...args) =>
   new Promise((resolve, reject) =>
     fs.close(...args, () => resolve()) )
 
 const tmpfile = (content) =>
   Promise.resolve(content).then(content => {
-    if (!content) return;
+    if (null == content) throw new TypeError('Null content for tmpfile')
+    if ('string' != typeof content && ! Buffer.isBuffer(content))
+      throw new TypeError(`Expected Buffer or string content for tmpfile (${typeof content})`)
+    if (!content) throw new TypeError('Empty content for tmpfile')
+
     return _tmpfile(content)
       .catch(() => _tmpfile(content))
       .catch(() => _tmpfile(content))
   })
+
+function finallyCleanupTmpList(aPromise, tmpList) {
+  return aPromise.then(
+      ans => { tmpList.forEach(e => e && e.cleanup()); return ans }
+    , err => { tmpList.forEach(e => e && e.cleanup()); throw err } )}
 
 const _tmpfile = (content) =>
   new Promise((resolve, reject) =>
     tmp.file((err, path, fd, cleanup) => {
       if (err) return reject(err)
       _fs_write(fd, content)
+        .then(() => _fs_fsync(fd))
         .then(() => _fs_close(fd), err => (_fs_close(fd), reject(err)))
         .then(() => resolve({path, cleanup}), reject) }))
 
@@ -285,7 +308,7 @@ Object.assign(exports, {
   asTLSOptions,
   asCertRequestArgs, configForOpenSSLRequest,
 
-  openssl_req, openssl_x509, openssl_cmd, openssl_inspect, use_openssl_binary,
+  openssl_req, openssl_x509, openssl_cmd, use_openssl_binary,
   spawn_cmd,
 })
 
