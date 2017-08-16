@@ -171,30 +171,21 @@ function openssl_req(options, ec) {
       }
 
       args = args.filter(e => e)
-
-      const retry = n =>
-        openssl_cmd(args).then(
-            resp => {
-              if (resp.stdout) return resp.stdout
-              if (n>0) return retry(n-1) }
-          , err => {
-              if (n>0) return retry(n-1)
-              throw err })
-
-      return finallyCleanupTmpList(retry(3), tmpList) })}
+      return finallyCleanupTmpList(openssl_stdout(args, 3), tmpList) })}
 
 
 // openssl x509 -req -in «/tmp/.../csr.pem» -CAkey «ec private key»
 function openssl_x509(csr, ca_key, ca_cert, options) {
+  while (csr && 'string' !== typeof csr) csr = csr.csr
+  while (ca_cert && 'string' !== typeof ca_cert) ca_cert = ca_cert.cert
+
   if (!options) options = {}
-  if (!ca_cert)
-    throw new Error("Parameter 'ca_cert' is required")
+  if (!csr) throw new Error("Parameter 'csr' is required")
+  if (!ca_key) throw new Error("Parameter 'ca_key' is required")
+  if (!ca_cert) throw new Error("Parameter 'ca_cert' is required")
 
   if (!options.extensions)
     options.extensions = extensionConfigForOpenSSL(options, 'v3_req')
-
-  while (csr && 'string' !== typeof csr) csr = csr.csr
-  while (ca_cert && 'string' !== typeof ca_cert) ca_cert = ca_cert.cert
 
   return Promise.all([
       tmpfile(csr),
@@ -209,16 +200,7 @@ function openssl_x509(csr, ca_key, ca_cert, options) {
       args.push('-extensions', 'v3_req', '-extfile', tmp_ext.path)
       args.push('-in', tmp_csr.path, '-CA', tmp_ca_cert.path, '-CAkey', tmp_ca_key.path)
 
-      const retry = n =>
-        openssl_cmd(args).then(
-            resp => {
-              if (resp.stdout) return resp.stdout
-              if (n>0) return retry(n-1) }
-          , err => {
-              if (n>0) return retry(n-1)
-              throw err })
-
-      return finallyCleanupTmpList(retry(3), tmpList) })}
+      return finallyCleanupTmpList(openssl_stdout(args, 3), tmpList) })}
 
 
 
@@ -226,12 +208,18 @@ let _openssl_binary = 'openssl'
 function use_openssl_binary(pathToOpenSSL) {
   _openssl_binary = pathToOpenSSL }
 
-let _openssl_queue = Promise.resolve()
+function openssl_stdout(args, retries) {
+  return openssl_cmd(args).then(
+      resp => {
+        if (resp.stdout) return resp.stdout
+        if (retries > 0) return openssl_stdout(args, retries - 1)
+        else throw new Error('Empty openssl response') }
+    , err => {
+        if (retries > 0) return openssl_stdout(args, retries - 1)
+        throw err }) }
+
 function openssl_cmd(args, options) {
-  const tip = _openssl_queue.catch(()=>null)
-    .then(() => spawn_cmd(_openssl_binary, args, options))
-  _openssl_queue = tip
-  return tip }
+  return spawn_cmd(_openssl_binary, args, options) }
 
 
 // child_process.spawn with {stdout, stderr}, Promises
@@ -262,24 +250,17 @@ function spawn_cmd(command, args, options) {
     return child })}
 
 
-const _fs_write = (...args) =>
+const _fs_writeFile = (...args) =>
   new Promise((resolve, reject) =>
-    fs.write(...args,
+    fs.writeFile(...args,
       (err, ans) => err ? reject(err) : resolve(ans)) )
-const _fs_fsync = (...args) =>
-  new Promise((resolve, reject) =>
-    fs.fsync(...args,
-      (err, ans) => err ? reject(err) : resolve(ans)) )
-const _fs_close = (...args) =>
-  new Promise((resolve, reject) =>
-    fs.close(...args, () => resolve()) )
+
 
 const tmpfile = (content) =>
   Promise.resolve(content).then(content => {
-    if (null == content) throw new TypeError('Null content for tmpfile')
+    if (!content) return null
     if ('string' != typeof content && ! Buffer.isBuffer(content))
       throw new TypeError(`Expected Buffer or string content for tmpfile (${typeof content})`)
-    if (!content) throw new TypeError('Empty content for tmpfile')
 
     return _tmpfile(content)
       .catch(() => _tmpfile(content))
@@ -294,11 +275,13 @@ function finallyCleanupTmpList(aPromise, tmpList) {
 const _tmpfile = (content) =>
   new Promise((resolve, reject) =>
     tmp.file((err, path, fd, cleanup) => {
-      if (err) return reject(err)
-      _fs_write(fd, content)
-        .then(() => _fs_fsync(fd))
-        .then(() => _fs_close(fd), err => (_fs_close(fd), reject(err)))
-        .then(() => resolve({path, cleanup}), reject) }))
+      if (err) {
+        if (cleanup) cleanup()
+        return reject(err)
+      } else {
+        _fs_writeFile(path, content, {encoding: 'ascii'})
+          .then(() => resolve({path, cleanup}), reject)
+      }}))
 
 
 
