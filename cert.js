@@ -156,11 +156,12 @@ function openssl_req(options, ec) {
       let args = ['req', '-new', '-sha256', '-key', tmp_key.path]
 
 
-      if (tmp_config)
-        args.push('-config', tmp_config.path)
-
       if (options.self_sign) {
-        args.push('-x509', '-extensions', 'v3_req', '-days', options.days || 1)
+        args.push('-x509', '-days', options.days || 1)
+      }
+
+      if (tmp_config) {
+        args.push('-config', tmp_config.path, '-extensions', 'v3_req')
       }
 
       args = args.filter(e => e)
@@ -242,9 +243,9 @@ function spawn_cmd(command, args, options) {
     } else if (options.stdin)
       options.stdin.pipe(child.stdin)
 
-    child.on('error', err => reject({err, __proto__: finish()}) )
+    child.on('error', err => reject({err, command, args, __proto__: finish()}) )
     child.on('exit', (exitCode,  exitSignal) => exitCode
-       ? reject({exitCode, exitSignal, __proto__: finish()})
+       ? reject({exitCode, exitSignal, command, args, __proto__: finish()})
        : resolve(finish()))
 
     child.stdout.on('data', data => io.stdout.push(data) )
