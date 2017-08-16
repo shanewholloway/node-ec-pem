@@ -171,7 +171,7 @@ function openssl_req(options, ec) {
       }
 
       args = args.filter(e => e)
-      return finallyCleanupTmpList(openssl_stdout(args, 3), tmpList) })}
+      return finallyCleanupTmpList(openssl_stdout(args, 5), tmpList) })}
 
 
 // openssl x509 -req -in «/tmp/.../csr.pem» -CAkey «ec private key»
@@ -200,7 +200,7 @@ function openssl_x509(csr, ca_key, ca_cert, options) {
       args.push('-extensions', 'v3_req', '-extfile', tmp_ext.path)
       args.push('-in', tmp_csr.path, '-CA', tmp_ca_cert.path, '-CAkey', tmp_ca_key.path)
 
-      return finallyCleanupTmpList(openssl_stdout(args, 3), tmpList) })}
+      return finallyCleanupTmpList(openssl_stdout(args, 5), tmpList) })}
 
 
 
@@ -208,15 +208,23 @@ let _openssl_binary = 'openssl'
 function use_openssl_binary(pathToOpenSSL) {
   _openssl_binary = pathToOpenSSL }
 
-function openssl_stdout(args, retries) {
-  return openssl_cmd(args).then(
-      resp => {
-        if (resp.stdout) return resp.stdout
-        if (retries > 0) return openssl_stdout(args, retries - 1)
-        else throw new Error('Empty openssl response') }
-    , err => {
-        if (retries > 0) return openssl_stdout(args, retries - 1)
-        throw err }) }
+function _backoff_delay(i, n) {
+  if (!n || n==i) return Promise.resolve()
+  return new Promise(resolve=>
+    setTimeout(resolve, 10 + (n-i)*20*Math.random()))
+}
+
+function openssl_stdout(args, retries, backoff) {
+  return _backoff_delay(retries, backoff)
+    .then(() => openssl_cmd(args))
+    .then(
+        resp => {
+          if (resp.stdout) return resp.stdout
+          if (retries > 0) return openssl_stdout(args, retries - 1, retries)
+          else throw new Error('Empty openssl response') }
+      , err => {
+          if (retries > 0) return openssl_stdout(args, retries - 1, retries)
+          throw err }) }
 
 function openssl_cmd(args, options) {
   return spawn_cmd(_openssl_binary, args, options) }
