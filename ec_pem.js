@@ -95,25 +95,25 @@ function generate(curve) {
   return ec_pem(ecdh, curve)
 }
 
-function clonePublic(ecdh) {
-  let copy = ec_pem(null, ecdh.curve)
+function clonePublic(ecdh, curve) {
+  let copy = ec_pem(null, curve || ecdh.curve)
     copy.setPublicKey(ecdh.getPublicKey())
   return copy
 }
-function clonePrivate(ecdh) {
-  let copy = ec_pem(null, ecdh.curve)
+function clonePrivate(ecdh, curve) {
+  let copy = ec_pem(null, curve || ecdh.curve)
   copy.setPrivateKey(ecdh.getPrivateKey())
   return copy
 }
-function clone(ecdh, kind) {
+function clone(ecdh, kind, curve) {
   switch (kind) {
   case 'private':
-    return clonePrivate(ecdh)
+    return clonePrivate(ecdh, curve)
   case 'public': case false:
-    return clonePublic(ecdh)
+    return clonePublic(ecdh, curve)
 
   case true: case null: case undefined:
-    let copy = ec_pem(null, ecdh.curve)
+    let copy = ec_pem(null, curve || ecdh.curve)
     try { copy.setPrivateKey(ecdh.getPrivateKey()) }
     catch (err) { copy.setPublicKey(ecdh.getPublicKey()) }
     return copy
