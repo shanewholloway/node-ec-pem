@@ -64,7 +64,8 @@ function ec_pem(ecdh, curve) {
 }
 
 exports = module.exports = Object.assign(ec_pem, {
-  ec_pem, ec_pem_api, generate, load, decode, sign, verify,
+  ec_pem, ec_pem_api, generate, load, decode,
+  sign, createSign, verify, createVerify,
   loadPrivateKey, decodePrivateKey, encodePrivateKey,
   loadPublicKey, decodePublicKey, encodePublicKey,
   clonePrivate, clonePublic, clone,
@@ -336,12 +337,26 @@ function sign(ecdh, algorithm, ...args) {
     _do_sign.call(sign, encodePrivateKey(ecdh, 'pem'), signature_format)
   return args.length ? sign.update(...args) : sign }
 
+function createSign(algorithm, options) {
+  let sign = crypto.createSign(algorithm, options)
+  let _do_sign = sign.sign
+  sign.sign = (ecdh, signature_format) =>
+    _do_sign.call(sign, encodePrivateKey(ecdh, 'pem'), signature_format)
+  return sign }
+
 function verify(ecdh, algorithm, ...args) {
   let verify = crypto.createVerify(algorithm)
   let _do_verify = verify.verify
   verify.verify = (signature, signature_format) =>
     _do_verify.call(verify, encodePublicKey(ecdh, 'pem'), signature, signature_format)
   return args.length ? verify.update(...args) : verify }
+
+function createVerify(algorithm, options) {
+  let verify = crypto.createVerify(algorithm, options)
+  let _do_verify = verify.verify
+  verify.verify = (ecdh, signature, signature_format) =>
+    _do_verify.call(verify, encodePublicKey(ecdh, 'pem'), signature, signature_format)
+  return verify }
 
 
 
