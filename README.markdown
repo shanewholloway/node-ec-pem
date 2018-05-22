@@ -51,25 +51,61 @@ const https = require('https');
 const ec_pem = require('ec-pem');
 const ec_cert = require('ec-pem/cert');
 
-let svr = ec_cert.createSelfSignedCertificate(
-    'example.com', ec_pem.generate('prime256v1'))
-  .then(options => https.createServer(options) )
-  .then(svr => {
-    svr.on('secureConnection', sock => console.log("New secure connection"));
-    svr.on('request', (req,res) => {
-      res.writeHead(200);
-      res.end('hello world\n');
-    });
-    return svr })
-  .then(svr => new Promise((resolve, reject) =>
-      svr.listen(8443, '127.0.0.1',
-        (err) => err ? reject(err) : resolve(svr))))
+const tls_options = ec_cert.createSelfSignedCertificate('example.com', 
+    { ec: ec_pem.generate('prime256v1'),
+      days: 30, altNames: ['example.com', 'www.example.com', '1.234.56.255'] })
 
-svr.then(() =>
-  https.get(
-    {hostname: '127.0.0.1', port:8443, pathname:'/', rejectUnauthorized: false},
-    res => { console.log(res.statusCode) }))
+demo_https_server(tls_options)
 
+
+
+function demo_https_server(tls_options) {
+  let svr = tls_options
+    .then(options => https.createServer(options) )
+    .then(svr => {
+      svr.on('secureConnection', sock => console.log("New secure connection"));
+      svr.on('request', (req,res) => {
+        res.writeHead(200);
+        res.end('hello world\n');
+      });
+      return svr })
+    .then(svr => new Promise((resolve, reject) =>
+        svr.listen(8443, '127.0.0.1',
+          (err) => err ? reject(err) : resolve(svr))))
+
+  svr.then(() =>
+    https.get(
+      {hostname: '127.0.0.1', port:8443, pathname:'/', rejectUnauthorized: false},
+      res => { console.log(res.statusCode) }))
+}
 
 ```
 
+
+### Use ec_pem/local_cert
+
+```javascript
+const https = require('https');
+const ec_localcert = require('ec-pem/local_cert');
+
+const tls_options = ec_localcert('tls_local.json')
+
+demo_https_server(tls_options)
+```
+
+or
+
+
+```javascript
+const https = require('https');
+const ec_localcert = require('ec-pem/local_cert');
+
+const tls_options = ec_localcert('tls_local.json', ({ec_cert, ec_pem}) =>
+  ec_cert.createSelfSignedCertificate('localhost.dev', {
+    ec: ec_pem.generate('prime256v1'),
+    days: 3660, // 10 years
+    altNames: ['localhost.dev', 'localhost', '127.0.0.1'],
+  }))
+
+demo_https_server(tls_options)
+```

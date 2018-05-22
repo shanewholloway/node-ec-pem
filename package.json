@@ -1,6 +1,6 @@
 {
   "name": "ec-pem",
-  "version": "0.17.0",
+  "version": "0.17.1",
   "description": "Enables `crypto.sign` and `crypto.verify` using `crypto.createECDH` generated keys",
   "keywords": [
     "ECDH",
@@ -14,7 +14,7 @@
   "license": "ISC",
   "main": "ec_pem.js",
   "dependencies": {
-    "asn1.js": "^5.0.0",
+    "asn1.js": "^4.10.1",
     "tmp": "^0.0.33"
   },
   "devDependencies": {

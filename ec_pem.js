@@ -31,7 +31,7 @@ const curveByKeySize = {
   '57,28': [ 'secp224r1' ],
   '61': [ 'sect233k1', 'sect233r1' ],
   '61,29': [ 'sect233k1', 'sect233r1' ],
-  '61,28': [ 'sect233r1' ],
+  '61,28': [ 'sect233k1', 'sect233r1' ],
   '73': [ 'sect283k1', 'sect283r1' ],
   '73,36': [ 'sect283k1', 'sect283r1' ],
   '73,35': [ 'sect283k1', 'sect283r1' ],
