@@ -28,12 +28,12 @@ const data = Buffer.from('a message to sign')
 
 describe('test signature simple', () => {
   it('should work, part A', () => {
-    const sign = crypto.createSign('ecdsa-with-SHA1')
+    const sign = crypto.createSign('sha1')
     sign.update(data)
     const signature = sign.sign(keys.priv)
     if (debug) console.log('SIGNATURE:', signature.toString('hex'))
 
-    const verify = crypto.createVerify('ecdsa-with-SHA1')
+    const verify = crypto.createVerify('sha1')
     verify.update(data)
     const valid = verify.verify(keys.pub, signature)
     if (debug) console.log('VALID:', valid)
