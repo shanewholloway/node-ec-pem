@@ -6,8 +6,12 @@ const ec_pem_api = {
   __proto__: Object.getPrototypeOf(crypto.createECDH('prime256v1')),
   encodePrivateKey(enc) { return encodePrivateKey(this, enc) },
   encodePublicKey(enc) { return encodePublicKey(this, enc) },
-  sign(algorithm, ...optionalArgs) { return sign(this, algorithm, ...optionalArgs) },
-  verify(algorithm, ...optionalArgs) { return verify(this, algorithm, ...optionalArgs) },
+  sign(algorithm, ...optionalArgs) { return sign_asn1(this, algorithm, ...optionalArgs) },
+  verify(algorithm, ...optionalArgs) { return verify_asn1(this, algorithm, ...optionalArgs) },
+  sign_asn1(algorithm, ...optionalArgs) { return sign_asn1(this, algorithm, ...optionalArgs) },
+  verify_asn1(algorithm, ...optionalArgs) { return verify_asn1(this, algorithm, ...optionalArgs) },
+  sign_ecdsa(algorithm, ...optionalArgs) { return sign_ecdsa(this, algorithm, ...optionalArgs) },
+  verify_ecdsa(algorithm, ...optionalArgs) { return verify_ecdsa(this, algorithm, ...optionalArgs) },
   clone(kind) { return clone(this, kind) },
   clonePublic() { return clonePublic(this) },
   clonePrivate() { return clonePrivate(this) },
@@ -65,7 +69,14 @@ function ec_pem(ecdh, curve) {
 
 exports = module.exports = Object.assign(ec_pem, {
   ec_pem, ec_pem_api, generate, load, decode,
-  sign, createSign, verify, createVerify,
+
+  sign: sign_asn1, createSign: createSign_asn1,
+  verify: verify_asn1, createVerify: createVerify_asn1,
+  sign_asn1, createSign_asn1,
+  verify_asn1, createVerify_asn1,
+  sign_ecdsa, createSign_ecdsa,
+  verify_ecdsa, createVerify_ecdsa,
+
   loadPrivateKey, decodePrivateKey, encodePrivateKey,
   loadPublicKey, decodePublicKey, encodePublicKey,
   clonePrivate, clonePublic, clone,
@@ -151,7 +162,7 @@ function fromJSON(obj) {
 function toPrivateBase64(ecdh, extra) {
   const hdr = JSON.stringify(Object.assign({curve: ecdh.curve, kind: 'private'}, extra))
   const b64_key = ecdh.getPrivateKey('base64')
-  return asUrlSafeBase64(`${Buffer(hdr).toString('base64')}.${b64_key}`)
+  return asUrlSafeBase64(`${Buffer.from(hdr).toString('base64')}.${b64_key}`)
 }
 function toPublicBase64(ecdh, extra, format='compressed') {
   if ('string' === typeof extra) {
@@ -159,7 +170,7 @@ function toPublicBase64(ecdh, extra, format='compressed') {
   }
   const hdr = JSON.stringify(Object.assign({curve: ecdh.curve, kind: 'public'}, extra))
   const b64_key = ecdh.getPublicKey('base64', format)
-  return asUrlSafeBase64(`${Buffer(hdr).toString('base64')}.${b64_key}`)
+  return asUrlSafeBase64(`${Buffer.from(hdr).toString('base64')}.${b64_key}`)
 }
 function fromBase64(content) {
   const parts = content.split('.')
@@ -177,11 +188,11 @@ function fromBase64(content) {
 
 function toPrivateBuffer(ecdh) {
   const pre = `ec:${ecdh.curve}\0`
-  return Buffer.concat([Buffer(pre), ecdh.getPrivateKey(null)])
+  return Buffer.concat([Buffer.from(pre), ecdh.getPrivateKey(null)])
 }
 function toPublicBuffer(ecdh, format='compressed') {
   const pre = `ec_pub:${ecdh.curve}\0`
-  return Buffer.concat([Buffer(pre, 'ascii'), ecdh.getPublicKey(null, format)])
+  return Buffer.concat([Buffer.from(pre, 'ascii'), ecdh.getPublicKey(null, format)])
 }
 function fromBuffer(buf) {
   const idx0 = buf.indexOf(0)
@@ -330,34 +341,134 @@ function encodePublicKey(ecdh, enc='pem') {
 }
 
 
-function sign(ecdh, algorithm, ...args) {
+function sign_asn1(ecdh, algorithm, ...args) {
   let sign = crypto.createSign(algorithm)
   let _do_sign = sign.sign
   sign.sign = signature_format =>
     _do_sign.call(sign, encodePrivateKey(ecdh, 'pem'), signature_format)
   return args.length ? sign.update(...args) : sign }
 
-function createSign(algorithm, options) {
+function createSign_asn1(algorithm, options) {
   let sign = crypto.createSign(algorithm, options)
   let _do_sign = sign.sign
   sign.sign = (ecdh, signature_format) =>
     _do_sign.call(sign, encodePrivateKey(ecdh, 'pem'), signature_format)
   return sign }
 
-function verify(ecdh, algorithm, ...args) {
+function verify_asn1(ecdh, algorithm, ...args) {
   let verify = crypto.createVerify(algorithm)
   let _do_verify = verify.verify
   verify.verify = (signature, signature_format) =>
     _do_verify.call(verify, encodePublicKey(ecdh, 'pem'), signature, signature_format)
   return args.length ? verify.update(...args) : verify }
 
-function createVerify(algorithm, options) {
+function createVerify_asn1(algorithm, options) {
   let verify = crypto.createVerify(algorithm, options)
   let _do_verify = verify.verify
   verify.verify = (ecdh, signature, signature_format) =>
     _do_verify.call(verify, encodePublicKey(ecdh, 'pem'), signature, signature_format)
   return verify }
 
+
+function sign_ecdsa(ecdh, algorithm, ...args) {
+  let sign = crypto.createSign(algorithm)
+  let _do_sign = sign.sign
+  sign.sign = signature_format =>
+    ecdsa_asn1_to_raw( ecdh.curve,
+      _do_sign.call(sign, encodePrivateKey(ecdh, 'pem'))
+      , signature_format)
+  return args.length ? sign.update(...args) : sign }
+
+function createSign_ecdsa(algorithm, options) {
+  let sign = crypto.createSign(algorithm, options)
+  let _do_sign = sign.sign
+  sign.sign = (ecdh, signature_format) =>
+    ecdsa_asn1_to_raw( ecdh.curve,
+      _do_sign.call(sign, encodePrivateKey(ecdh, 'pem'))
+      , signature_format )
+  return sign }
+
+function verify_ecdsa(ecdh, algorithm, ...args) {
+  let verify = crypto.createVerify(algorithm)
+  let _do_verify = verify.verify
+  verify.verify = (signature_ecdsa, signature_format) =>
+    _do_verify.call(verify, encodePublicKey(ecdh, 'pem'),
+      ecdsa_raw_to_asn1( ecdh.curve, signature_ecdsa, signature_format ))
+  return args.length ? verify.update(...args) : verify }
+
+function createVerify_ecdsa(algorithm, options) {
+  let verify = crypto.createVerify(algorithm, options)
+  let _do_verify = verify.verify
+  verify.verify = (ecdh, signature_ecdsa, signature_format) =>
+    _do_verify.call(verify, encodePublicKey(ecdh, 'pem'),
+      ecdsa_raw_to_asn1( ecdh.curve, signature_ecdsa, signature_format ))
+  return verify }
+
+
+// ASN1 ECDSA packing and unpacking
+
+const zero_byte = Buffer.from([0])
+const ecdsa_supported_curves = {
+  'prime256v1': 'prime256v1',
+  'P-256': 'prime256v1',
+  'secp256r1': 'prime256v1',
+  'P-384': 'secp384r1',
+  'secp384r1': 'secp384r1',
+  'P-521': 'secp521r1',
+  'secp521r1': 'secp521r1',
+}
+
+function ecdsa_raw_to_asn1(curve, ecdsa_raw, signature_format) {
+  if (! ecdsa_supported_curves[curve] )
+    throw new Error('Unsupported ECDSA curve')
+
+  ecdsa_raw = Buffer.from(ecdsa_raw, signature_format)
+
+  const hlen = ecdsa_raw.byteLength >>> 1
+  let r = ecdsa_raw.slice(0, hlen)
+  let s = ecdsa_raw.slice(hlen)
+
+  // prepend 0 to negative numbers
+  if (0x80 & r[0]) r = Buffer.concat([zero_byte, r])
+  else if (0 === r[0] && !(0x80 & r[1]))
+    r = r.slice(1) // 0 prefixed non-negetive; trim
+  if (0x80 & s[0]) s = Buffer.concat([zero_byte, s])
+  else if (0 === s[0] && !(0x80 & s[1]))
+    s = s.slice(1) // 0 prefixed non-negetive; trim
+
+  // assemble ASN1 blocks
+  const asn1 = []
+
+  const seq_len = 4 + r.byteLength + s.byteLength
+  if (127 < seq_len)
+    asn1.push(Buffer.from([0x30, 0x81, seq_len]))
+  else asn1.push(Buffer.from([0x30, seq_len]))
+
+  asn1.push(Buffer.from([0x02, r.byteLength]), r)
+  asn1.push(Buffer.from([0x02, s.byteLength]), s)
+  return Buffer.concat(asn1)
+}
+
+function ecdsa_asn1_to_raw(curve, ecdsa_asn1, signature_format) {
+  if (! ecdsa_supported_curves[curve] )
+    throw new Error('Unsupported ECDSA curve')
+
+  let {r, s} = ASN1_ECDSA.decode(ecdsa_asn1, 'der')
+  r = r.toBuffer(); s = s.toBuffer()
+
+  const ecdsa = []
+  if (1 & r.byteLength)
+    ecdsa.push(zero_byte)
+  ecdsa.push(r)
+  if (1 & s.byteLength)
+    ecdsa.push(zero_byte)
+  ecdsa.push(s)
+
+  const ecdsa_raw = Buffer.concat(ecdsa)
+  return signature_format
+    ? ecdsa_raw.toString(signature_format)
+    : ecdsa_raw
+}
 
 
 // ASN1 definitions for Elliptic Curve PKI structures.
@@ -393,6 +504,11 @@ const ASN1_ECAlgorithm = asn1.define('ECAlgorithm', function(){
       this.key('g').int()
     ).optional()) })
 
+
+const ASN1_ECDSA = asn1.define('ECDSA', function(){
+  this.seq().obj(
+    this.key('r').int(),
+    this.key('s').int()) })
 
 
 // From [RFC 5480 Section-2.1.1](https://tools.ietf.org/html/rfc5480#section-2.1.1)
